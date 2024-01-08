@@ -1,0 +1,50 @@
+@import url("fonts.css");
+
+:root {
+  --primary-color: #f5841f;
+  --circle-radius: 1.2rem;
+  --connector-width: 0.2rem;
+  --connector-height: 3rem;
+  --font-size: 16px;
+}
+
+body {
+  font-family: "Epilogue", sans-serif;
+  background-color: #000;
+}
+
+.app-container {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background-color: #000;
+}
+
+.bg-pattern {
+  background-image: url("/public/v2/pattern.png");
+  background-repeat: no-repeat;
+  background-size: 100% auto;
+  background-size: cover;
+  background-attachment: fixed;
+}
+
+.bg-pattern-2nd-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  min-width: 100%;
+}
+
+@keyframes pulseAnimation {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}

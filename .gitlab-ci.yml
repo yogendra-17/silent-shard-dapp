@@ -1,0 +1,32 @@
+stages: 
+  - deploy-prod
+  - deploy-staging
+
+deploy-prod: 
+  stage: deploy-prod
+  only:
+    - main
+  tags:
+    - dapp-v2-deployer
+  script: 
+    - rsync -avP ../dapp-v2 /opt/app/dapp-v2-staging
+    - cd /opt/app/dapp-v2/dapp-v2/
+    - npm i
+    - REACT_APP_MIX_PANEL_TOKEN=$REACT_APP_MIX_PANEL_TOKEN CI=false npm run build
+    - sudo systemctl restart dapp-v2.service
+
+
+deploy-staging: 
+  stage: deploy-staging
+  only:
+    - staging
+  tags:
+    - dapp-v2-deployer
+  script: 
+    - rsync -avP ../dapp-v2 /opt/app/dapp-v2-staging
+    - cd /opt/app/dapp-v2-staging/dapp-v2/
+    - npm i
+    - REACT_APP_MIX_PANEL_TOKEN=$REACT_APP_MIX_PANEL_TOKEN CI=false npm run build
+    - sudo systemctl restart dapp-v2-staging.service
+
+
