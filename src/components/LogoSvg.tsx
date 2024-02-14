@@ -14,8 +14,7 @@ export default function LogoSvg({
       className={className}
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 82 32"
-      fill="none"
-    >
+      fill="none">
       <path
         opacity="0.994"
         fillRule="evenodd"

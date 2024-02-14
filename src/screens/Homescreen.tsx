@@ -1,80 +1,63 @@
-import { KeyringAccount } from "@metamask/keyring-api";
-import { MoreVertical } from "lucide-react";
-import { useEffect, useState } from "react";
+import { KeyringAccount } from '@metamask/keyring-api';
+import { MoreVertical } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { toast } from 'react-toastify';
 
-import Layout from "@/components/Layout";
+import { CONNECTION_REJECTED_UPDATE_SNAP_TOAST_MSG } from '@/api/error';
+import Layout from '@/components/Layout';
+import { ErrorToast } from '@/components/Toast/error';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Separator } from "@/components/ui/separator";
+} from '@/components/ui/accordion';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Separator } from '@/components/ui/separator';
+import { compareVersions } from '@/utils/metamask';
 
-import { getKeyringClient } from "../api/snap";
+import { connectSnap, getKeyringClient } from '../api/snap';
 
 interface HomescreenProps {
   onLogout: () => void;
+  onSnapUpdate: () => Promise<void>;
+  onMissingProvider: (error: unknown) => void;
   currentSnapVersion: string;
   latestSnapVersion: string;
-  isUpateAvailabe: boolean;
   account: KeyringAccount;
+  provider: any;
 }
 const Homescreen: React.FC<HomescreenProps> = ({
   onLogout,
+  onSnapUpdate,
+  onMissingProvider,
   account,
+  currentSnapVersion,
   latestSnapVersion,
-  isUpateAvailabe,
+  provider,
 }) => {
-  const client = getKeyringClient();
   const [showSuccessBanner, setShowSuccessBanner] = useState(true);
-  const [showUpdateBanner, setShowUpdateBanner] = useState(isUpateAvailabe);
+  const [showUpdateBanner, setShowUpdateBanner] = useState(false);
   const [showUpdateSuccess, setShowUpdateSuccess] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
   const [open, setOpen] = useState(false);
   const [showRemoveSuccess, setShowRemoveSuccess] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(true);
 
-  const handleOpenMetaMaskCIExtension = () => {
-    const userAgent = window.navigator.userAgent;
-    if (userAgent.includes("Firefox")) {
-      window.open("https://metamask.io/flask/", "_blank");
-    } else {
-      window.open("https://metamask.io/flask/", "_blank");
-    }
-  };
-
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        if (!isUpateAvailabe && showUpdateBanner) {
-          setShowUpdateSuccess(true);
-        } else if (isUpateAvailabe && !showUpdateBanner) {
-          setShowUpdateBanner(true);
-        }
-      }
-    };
+    const isUpdateAvailable =
+      latestSnapVersion && currentSnapVersion
+        ? compareVersions(latestSnapVersion, currentSnapVersion) > 0
+        : false;
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [isUpateAvailabe, showUpdateBanner]);
+    setShowUpdateBanner(isUpdateAvailable);
+  }, [latestSnapVersion, currentSnapVersion]);
 
   return (
     <div className="animate__animated animate__slideInUp animate__faster">
       {!showRemoveSuccess ? (
-        <Layout
-          overlay={showOverlay}
-          className={`border-none bg-transparent h-max py-0 w-[52.03vw]`}
-        >
+        <Layout overlay={showOverlay} className="border-none bg-transparent h-max py-0">
           {showSuccessBanner && (
             <div className="mb-6 flex-none relative flex flex-col justify-center p-4 border rounded-[8px] bg-[#08170E] border-[#166533] w-full text-[#BBF7D1]">
               <svg
@@ -86,8 +69,7 @@ const Homescreen: React.FC<HomescreenProps> = ({
                 width="16"
                 height="16"
                 viewBox="0 0 16 16"
-                fill="none"
-              >
+                fill="none">
                 <path
                   d="M9.06193 7.99935L12.0307 5.0306C12.1716 4.88995 12.2508 4.69909 12.251 4.50001C12.2512 4.30093 12.1723 4.10993 12.0316 3.96904C11.891 3.82814 11.7001 3.74889 11.501 3.74871C11.3019 3.74853 11.1109 3.82745 10.9701 3.9681L8.0013 6.93685L5.03255 3.9681C4.89165 3.8272 4.70056 3.74805 4.5013 3.74805C4.30204 3.74805 4.11095 3.8272 3.97005 3.9681C3.82915 4.10899 3.75 4.30009 3.75 4.49935C3.75 4.69861 3.82915 4.8897 3.97005 5.0306L6.9388 7.99935L3.97005 10.9681C3.82915 11.109 3.75 11.3001 3.75 11.4993C3.75 11.6986 3.82915 11.8897 3.97005 12.0306C4.11095 12.1715 4.30204 12.2506 4.5013 12.2506C4.70056 12.2506 4.89165 12.1715 5.03255 12.0306L8.0013 9.06185L10.9701 12.0306C11.1109 12.1715 11.302 12.2506 11.5013 12.2506C11.7006 12.2506 11.8917 12.1715 12.0326 12.0306C12.1734 11.8897 12.2526 11.6986 12.2526 11.4993C12.2526 11.3001 12.1734 11.109 12.0326 10.9681L9.06193 7.99935Z"
                   fill="#4ADE80"
@@ -100,8 +82,7 @@ const Homescreen: React.FC<HomescreenProps> = ({
                   width="64"
                   height="64"
                   viewBox="0 0 64 64"
-                  fill="none"
-                >
+                  fill="none">
                   <path
                     d="M32 6C17.6637 6 6 17.6637 6 32C6 46.3363 17.6637 58 32 58C46.3363 58 58 46.3363 58 32C58 17.6637 46.3363 6 32 6ZM45.5312 23.2862L28.7313 43.2863C28.547 43.5058 28.3177 43.6831 28.0589 43.8062C27.8001 43.9294 27.5178 43.9955 27.2313 44H27.1975C26.9172 43.9999 26.64 43.9409 26.384 43.8267C26.1279 43.7126 25.8987 43.5459 25.7113 43.3375L18.5112 35.3375C18.3284 35.1436 18.1862 34.915 18.0929 34.6653C17.9996 34.4156 17.9572 34.1498 17.9681 33.8835C17.9791 33.6171 18.0431 33.3557 18.1565 33.1145C18.27 32.8733 18.4305 32.6571 18.6286 32.4788C18.8267 32.3005 19.0585 32.1636 19.3103 32.0762C19.5621 31.9887 19.8288 31.9525 20.0948 31.9696C20.3608 31.9867 20.6207 32.0568 20.8592 32.1758C21.0978 32.2948 21.3101 32.4603 21.4837 32.6625L27.145 38.9525L42.4688 20.7138C42.8125 20.3163 43.2988 20.0702 43.8226 20.0284C44.3463 19.9867 44.8655 20.1528 45.2678 20.4907C45.6701 20.8287 45.9233 21.3114 45.9726 21.8345C46.0219 22.3576 45.8634 22.8791 45.5312 23.2862Z"
                     fill="#4ADE80"
@@ -118,16 +99,27 @@ const Homescreen: React.FC<HomescreenProps> = ({
                 Update available! ({latestSnapVersion})
               </div>
               <div className="text-[#D8DBDF] b2-regular mt-3 mb-6">
-                You are currently using older version of Silent Shard Snap.
-                Update to the latest version for enhanced performance.
+                You are currently using older version of Silent Shard Snap. Update to the latest
+                version for enhanced performance.
               </div>
               <Button
                 className="bg-indigo-primary hover:bg-indigo-hover active:bg-indigo-active w-2/3 self-center text-white-primary btn-sm"
-                onClick={() => {
-                  handleOpenMetaMaskCIExtension();
-                  setShowUpdateBanner(false);
-                }}
-              >
+                onClick={async () => {
+                  try {
+                    await connectSnap(latestSnapVersion, provider);
+                    await onSnapUpdate();
+                    setShowUpdateBanner(false);
+                  } catch (error) {
+                    if (error instanceof Error) {
+                      onMissingProvider(error);
+                      console.error(error.message);
+                    } else {
+                      const rpcError = error as ProviderRpcError;
+                      if (rpcError.code === 4001)
+                        toast(<ErrorToast msg={CONNECTION_REJECTED_UPDATE_SNAP_TOAST_MSG} />);
+                    }
+                  }
+                }}>
                 Update
               </Button>
             </div>
@@ -136,8 +128,7 @@ const Homescreen: React.FC<HomescreenProps> = ({
           {showUpdateSuccess && (
             <div
               className="mb-6 relative flex items-center p-2 border rounded-[8px] border-[#166533] w-full text-[#BBF7D1]"
-              style={{ background: "rgba(74, 222, 128, 0.10)" }}
-            >
+              style={{ background: 'rgba(74, 222, 128, 0.10)' }}>
               <div className="flex flex-1 items-center b2-regular">
                 <svg
                   className="mr-1 mb-1"
@@ -145,8 +136,7 @@ const Homescreen: React.FC<HomescreenProps> = ({
                   width="16"
                   height="16"
                   viewBox="0 0 16 16"
-                  fill="none"
-                >
+                  fill="none">
                   <path
                     d="M8 2C4.41594 2 1.5 4.91594 1.5 8.5C1.5 12.0841 4.41594 15 8 15C11.5841 15 14.5 12.0841 14.5 8.5C14.5 4.91594 11.5841 2 8 2ZM11.3828 6.32156L7.18281 11.3216C7.13674 11.3764 7.07941 11.4208 7.01471 11.4516C6.95001 11.4823 6.87945 11.4989 6.80781 11.5H6.79938C6.72929 11.5 6.66 11.4852 6.59599 11.4567C6.53198 11.4282 6.47468 11.3865 6.42781 11.3344L4.62781 9.33438C4.5821 9.28589 4.54654 9.22876 4.52322 9.16633C4.4999 9.10391 4.4893 9.03745 4.49203 8.97087C4.49477 8.90429 4.51078 8.83892 4.53914 8.77862C4.56749 8.71831 4.60761 8.66429 4.65715 8.61971C4.70668 8.57514 4.76463 8.54091 4.82757 8.51905C4.89052 8.49719 4.95721 8.48813 5.02371 8.4924C5.09021 8.49668 5.15518 8.51421 5.21481 8.54396C5.27444 8.5737 5.32752 8.61507 5.37094 8.66562L6.78625 10.2381L10.6172 5.67844C10.7031 5.57909 10.8247 5.51754 10.9556 5.50711C11.0866 5.49668 11.2164 5.53819 11.317 5.62268C11.4175 5.70717 11.4808 5.82784 11.4931 5.95862C11.5055 6.0894 11.4658 6.21977 11.3828 6.32156Z"
                     fill="#4ADE80"
@@ -163,8 +153,7 @@ const Homescreen: React.FC<HomescreenProps> = ({
                 width="16"
                 height="17"
                 viewBox="0 0 16 17"
-                fill="none"
-              >
+                fill="none">
                 <path
                   d="M9.06144 8.49935L12.0302 5.5306C12.1711 5.38995 12.2503 5.19909 12.2505 5.00001C12.2507 4.80093 12.1718 4.60993 12.0311 4.46904C11.8905 4.32814 11.6996 4.24889 11.5005 4.24871C11.3015 4.24853 11.1105 4.32745 10.9696 4.4681L8.00081 7.43685L5.03206 4.4681C4.89117 4.3272 4.70007 4.24805 4.50081 4.24805C4.30156 4.24805 4.11046 4.3272 3.96956 4.4681C3.82867 4.60899 3.74951 4.80009 3.74951 4.99935C3.74951 5.19861 3.82867 5.3897 3.96956 5.5306L6.93831 8.49935L3.96956 11.4681C3.82867 11.609 3.74951 11.8001 3.74951 11.9993C3.74951 12.1986 3.82867 12.3897 3.96956 12.5306C4.11046 12.6715 4.30156 12.7506 4.50081 12.7506C4.70007 12.7506 4.89117 12.6715 5.03206 12.5306L8.00081 9.56185L10.9696 12.5306C11.1105 12.6715 11.3016 12.7506 11.5008 12.7506C11.7001 12.7506 11.8912 12.6715 12.0321 12.5306C12.173 12.3897 12.2521 12.1986 12.2521 11.9993C12.2521 11.8001 12.173 11.609 12.0321 11.4681L9.06144 8.49935Z"
                   fill="#4ADE80"
@@ -173,10 +162,9 @@ const Homescreen: React.FC<HomescreenProps> = ({
             </div>
           )}
           <div
-            className="mb-3 flex flex-col justify-center p-4 border rounded-[8px] w-full bg-black"
-            style={{ border: "1px solid #23272E", padding: "32px 40px" }}
-          >
-            <div className="flex items-center flex-wrap max-sm:space-y-4 overflow-y-auto">
+            className="mb-3 flex flex-col justify-center p-4 border rounded-[8px] bg-black"
+            style={{ border: '1px solid #23272E', padding: '32px 40px' }}>
+            <div className="flex flex-col space-y-1 md:flex-row md:space-y-0 flex-wrap items-center">
               <div className="mr-3 h-[48px] w-[48px] rounded-full aspect-square bg-[#181625] flex justify-center">
                 <svg
                   className="self-center"
@@ -184,8 +172,7 @@ const Homescreen: React.FC<HomescreenProps> = ({
                   width="28"
                   height="28"
                   viewBox="0 0 28 28"
-                  fill="none"
-                >
+                  fill="none">
                   <path
                     fillRule="evenodd"
                     clipRule="evenodd"
@@ -201,23 +188,18 @@ const Homescreen: React.FC<HomescreenProps> = ({
                       className="flex items-center"
                       onClick={async () => {
                         navigator.clipboard.writeText(account.address);
-                      }}
-                    >
+                      }}>
                       <span className="mr-1 text-[#F7F8F8] b1-bold">
                         {account.address.slice(0, 5)}
-                        {"..."}
-                        {account.address.slice(
-                          account.address.length - 5,
-                          account.address.length
-                        )}
+                        {'...'}
+                        {account.address.slice(account.address.length - 5, account.address.length)}
                       </span>
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         width="20"
                         height="21"
                         viewBox="0 0 20 21"
-                        fill="none"
-                      >
+                        fill="none">
                         <path
                           fillRule="evenodd"
                           clipRule="evenodd"
@@ -227,11 +209,14 @@ const Homescreen: React.FC<HomescreenProps> = ({
                       </svg>
                     </div>
                   </PopoverTrigger>
-                  <PopoverContent className="flex justify-center w-18 p-1">
+                  <PopoverContent
+                    align="start"
+                    side="right"
+                    className="flex justify-center w-18 p-1 b2-md">
                     Copied!
                   </PopoverContent>
                 </Popover>
-                <div className="flex text-[#EDEEF1]">
+                <div className="flex text-[#EDEEF1] justify-center md:justify-start">
                   <img className="mr-1" src="/v2/mmicon.svg" alt="mmicon" />
                   <div className="b2-regular">MetaMask</div>
                 </div>
@@ -239,36 +224,28 @@ const Homescreen: React.FC<HomescreenProps> = ({
               <div className="ml-auto"></div>
               <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger>
-                  <Button
-                    className="bg-gray-custom rounded-full w-8 h-8"
-                    size="icon"
-                  >
+                  <Button className="bg-gray-custom rounded-full w-8 h-8" size="icon">
                     <MoreVertical />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="flex justify-center w-18 p-1 bg-[#111112] border-[#434E61] border-[1px]">
                   <div className="flex flex-col gap-2 bg-[#111112] text-white-primary p-2">
                     <div
-                      className="bg-[#111112] flex justify-center items-center hover:bg-[#1E1F25]  rounded-[8px] cursor-pointer p-2"
+                      className="bg-[#111112] flex justify-center items-center hover:bg-[#1E1F25] rounded-[8px] cursor-pointer p-2"
                       onClick={() => {
                         window.open(
-                          "https://www.silencelaboratories.com/silent-shard-snap",
-                          "_blank"
+                          'https://www.silencelaboratories.com/silent-shard-snap',
+                          '_blank'
                         );
-                      }}
-                    >
-                      <div
-                        className="flex rounded-full p-2 mr-2"
-                        style={{ background: "#23272E" }}
-                      >
+                      }}>
+                      <div className="flex rounded-full p-2 mr-2" style={{ background: '#23272E' }}>
                         <svg
                           className="self-center"
                           xmlns="http://www.w3.org/2000/svg"
                           width="20"
                           height="20"
                           viewBox="0 0 20 20"
-                          fill="none"
-                        >
+                          fill="none">
                           <path
                             fillRule="evenodd"
                             clipRule="evenodd"
@@ -287,26 +264,21 @@ const Homescreen: React.FC<HomescreenProps> = ({
                     <Separator className="w-[248px] ml-3 my-1 bg-[#3A4252]" />
 
                     <div
-                      className="bg-[#111112] flex justify-center items-center  hover:bg-[#1E1F25]  rounded-[8px] cursor-pointer p-2"
+                      className="bg-[#111112] flex justify-center items-center hover:bg-[#1E1F25] rounded-[8px] cursor-pointer p-2"
                       onClick={() => {
                         window.open(
-                          "https://www.silencelaboratories.com/silent-shard-snap#faq",
-                          "_blank"
+                          'https://www.silencelaboratories.com/silent-shard-snap#faq',
+                          '_blank'
                         );
-                      }}
-                    >
-                      <div
-                        className="flex rounded-full p-2 mr-2"
-                        style={{ background: "#23272E" }}
-                      >
+                      }}>
+                      <div className="flex rounded-full p-2 mr-2" style={{ background: '#23272E' }}>
                         <svg
                           className="self-center"
                           xmlns="http://www.w3.org/2000/svg"
                           width="20"
                           height="20"
                           viewBox="0 0 20 20"
-                          fill="none"
-                        >
+                          fill="none">
                           <path
                             d="M17.1836 15.8438H17.1524L17.1211 15.8398C17.0156 15.8281 16.9102 15.8047 16.8086 15.7617L14.5938 14.9766L14.5781 14.9688C14.5313 14.9492 14.4805 14.9375 14.4258 14.9375C14.375 14.9375 14.3281 14.9453 14.2813 14.9648C14.2305 14.9844 13.7422 15.168 13.2344 15.3086C12.957 15.3828 11.9961 15.6328 11.2266 15.6328C9.25392 15.6328 7.41017 14.875 6.03517 13.5C4.67189 12.1367 3.92189 10.3281 3.92189 8.40234C3.92189 7.91016 3.97657 7.41406 4.08204 6.93359C4.42579 5.34766 5.33595 3.90625 6.64064 2.87109C7.95704 1.82422 9.62892 1.25 11.3399 1.25C13.3789 1.25 15.2813 2.03125 16.6914 3.44531C18.0274 4.78516 18.7578 6.54297 18.75 8.40234C18.75 9.78516 18.3399 11.125 17.5664 12.2773L17.5469 12.3086C17.5313 12.3281 17.5195 12.3477 17.5039 12.3672C17.4844 12.3984 17.4727 12.4258 17.4649 12.4453L18.0781 14.6289C18.1016 14.7031 18.1133 14.7812 18.1211 14.8594V14.9063C18.1211 15.4219 17.6992 15.8438 17.1836 15.8438ZM15.0391 13.8086L16.7149 14.4023L16.2344 12.6875C16.1563 12.4023 16.2188 12.082 16.4258 11.7305L16.4297 11.7227C16.4649 11.668 16.5 11.6133 16.5391 11.5586C17.168 10.6172 17.5 9.52344 17.5 8.39453C17.5039 6.87109 16.9024 5.42578 15.8047 4.32422C14.6289 3.14844 13.043 2.5 11.3399 2.5C8.4297 2.5 5.88673 4.47656 5.29689 7.19922C5.21095 7.59375 5.16798 8 5.16798 8.40234C5.16798 11.6992 7.88282 14.3828 11.2227 14.3828C11.7109 14.3828 12.4336 14.2344 12.9024 14.1055C13.3633 13.9805 13.8203 13.8086 13.8399 13.8008C14.0274 13.7305 14.2227 13.6953 14.4258 13.6953C14.6328 13.6914 14.8399 13.7305 15.0391 13.8086Z"
                             fill="#F6F7F9"
@@ -323,33 +295,30 @@ const Homescreen: React.FC<HomescreenProps> = ({
 
                     <Separator className="w-[248px] ml-3 my-1 bg-[#3A4252]" />
                     <div
-                      className="bg-[#111112] flex justify-center items-center hover:bg-[#EF444433]  rounded-[8px] cursor-pointer p-2"
+                      className="bg-[#111112] flex justify-center items-center hover:bg-[#EF444433] rounded-[8px] cursor-pointer p-2"
                       onClick={async () => {
                         try {
                           setShowOverlay(true);
                           setOpen(false);
+                          const client = getKeyringClient(provider);
                           const accounts = await client.listAccounts();
-                          if (accounts.length > 0)
-                            await client.deleteAccount(accounts[0].id);
+                          if (accounts.length > 0) await client.deleteAccount(accounts[0].id);
                           setShowOverlay(false);
                           setShowRemoveSuccess(true);
                         } catch (error: unknown) {
                           setShowOverlay(false);
                         }
-                      }}
-                    >
+                      }}>
                       <div
                         className="flex rounded-full p-2 mr-2"
-                        style={{ background: "rgba(239, 68, 68, 0.15)" }}
-                      >
+                        style={{ background: 'rgba(239, 68, 68, 0.15)' }}>
                         <svg
                           className="self-center"
                           xmlns="http://www.w3.org/2000/svg"
                           width="20"
                           height="20"
                           viewBox="0 0 20 20"
-                          fill="none"
-                        >
+                          fill="none">
                           <path
                             fillRule="evenodd"
                             clipRule="evenodd"
@@ -368,9 +337,8 @@ const Homescreen: React.FC<HomescreenProps> = ({
                       <span
                         className="b2-regular"
                         style={{
-                          color: "#F87171",
-                        }}
-                      >
+                          color: '#F87171',
+                        }}>
                         Delete account
                       </span>
                       <div className="flex-1"></div>
@@ -383,16 +351,14 @@ const Homescreen: React.FC<HomescreenProps> = ({
             </div>
           </div>
           <div
-            className="my-3 flex flex-col justify-center px-10 py-6 border w-full rounded-[8px] bg-black max-sm:space-y-4 overflow-y-auto"
-            style={{ border: "1px solid var(--Secondary-950, #23272E)" }}
-          >
+            className="my-3 flex flex-col justify-center px-10 py-6 border rounded-[8px] bg-black"
+            style={{ border: '1px solid var(--Secondary-950, #23272E)' }}>
             <Accordion type="single" collapsible>
               <AccordionItem value="item-1">
                 <AccordionTrigger
                   onClick={() => {
                     setIsCollapsed(!isCollapsed);
-                  }}
-                >
+                  }}>
                   <div className="full-w text-start flex-1 text-white-primary b1-md">
                     What to do next?
                   </div>
@@ -403,7 +369,7 @@ const Homescreen: React.FC<HomescreenProps> = ({
                       className="mx-2 h-[146px] w-[222px]"
                       src="/v2/what_next.gif"
                       alt="laptop"
-                      style={{ width: "100%", height: "auto" }}
+                      style={{ width: '100%', height: 'auto' }}
                     />
                   </div>
                 </AccordionContent>
@@ -411,33 +377,28 @@ const Homescreen: React.FC<HomescreenProps> = ({
             </Accordion>
           </div>
           <div
-            className="mt-3 mb-6 flex justify-between px-10 py-6 border rounded-[8px] bg-black max-sm:space-y-4 overflow-y-auto"
-            style={{ border: "1px solid var(--Secondary-950, #23272E)" }}
-          >
+            className="mt-3 mb-6 flex flex-wrap justify-between overflow-auto px-10 py-6 border rounded-[8px] bg-black"
+            style={{ border: '1px solid var(--Secondary-950, #23272E)' }}>
             <div className="text-white-primary b1-regular">Reach us at</div>
-            <div className="text-indigo-custom b1-bold">
-              snap@silencelaboratories.com
-            </div>
+            <div className="text-indigo-custom b1-bold">snap@silencelaboratories.com</div>
           </div>
           <div className="text-white-primary full-w flex flex-col items-center justify-center">
             <div className="text-[#B6BAC3] text-center label-regular">
-              This Snap is powered by{" "}
+              This Snap is powered by{' '}
               <a
                 className="underline text-indigo-custom label-bold"
                 href="https://www.silencelaboratories.com/silent-shard"
                 target="_blank"
-                rel="noreferrer"
-              >
+                rel="noreferrer">
                 Silent Shard Two Party SDK
-              </a>{" "}
-              from{" "}
+              </a>{' '}
+              from{' '}
               <a
                 className="underline text-indigo-custom label-bold"
                 href="https://www.silencelaboratories.com"
                 target="_blank"
-                rel="noreferrer"
-              >
-                {" "}
+                rel="noreferrer">
+                {' '}
                 Silence Laboratories.
               </a>
             </div>
@@ -452,8 +413,7 @@ const Homescreen: React.FC<HomescreenProps> = ({
               width="88"
               height="88"
               viewBox="0 0 88 88"
-              fill="none"
-            >
+              fill="none">
               <path
                 d="M44 8.25C24.2877 8.25 8.25 24.2877 8.25 44C8.25 63.7123 24.2877 79.75 44 79.75C63.7123 79.75 79.75 63.7123 79.75 44C79.75 24.2877 63.7123 8.25 44 8.25ZM62.6055 32.0186L39.5055 59.5186C39.2521 59.8204 38.9368 60.0642 38.5809 60.2336C38.2251 60.4029 37.837 60.4937 37.443 60.5H37.3966C37.0111 60.4999 36.63 60.4187 36.2779 60.2618C35.9259 60.1048 35.6107 59.8756 35.353 59.5891L25.453 48.5891C25.2015 48.3224 25.006 48.0082 24.8777 47.6648C24.7495 47.3215 24.6912 46.956 24.7062 46.5898C24.7212 46.2236 24.8093 45.8641 24.9652 45.5324C25.1212 45.2007 25.3419 44.9036 25.6143 44.6584C25.8867 44.4132 26.2054 44.225 26.5517 44.1048C26.8979 43.9845 27.2646 43.9347 27.6304 43.9582C27.9961 43.9818 28.3535 44.0782 28.6815 44.2418C29.0094 44.4054 29.3014 44.6329 29.5402 44.9109L37.3244 53.5597L58.3945 28.4814C58.8672 27.935 59.5358 27.5965 60.256 27.5391C60.9762 27.4817 61.69 27.71 62.2432 28.1747C62.7964 28.6394 63.1445 29.3031 63.2123 30.0224C63.2801 30.7417 63.0621 31.4587 62.6055 32.0186Z"
                 fill="#4ADE80"
@@ -463,13 +423,11 @@ const Homescreen: React.FC<HomescreenProps> = ({
               Snaps wallet removed successfully!
             </div>
             <p className="text-white-primary text-center mt-4 mb-3 b1-regular">
-              You can still recover your wallet if you have a backup of your
-              wallet file.
+              You can still recover your wallet if you have a backup of your wallet file.
             </p>
             <Button
-              className="bg-indigo-primary hover:bg-indigo-hover active:bg-indigo-active w-1/2 self-center text-white-primary btn-lg"
-              onClick={onLogout}
-            >
+              className="max-sm:p-8 w-3/4 bg-indigo-primary hover:bg-indigo-hover active:bg-indigo-active self-center text-white-primary btn-lg"
+              onClick={onLogout}>
               Continue
             </Button>
           </div>

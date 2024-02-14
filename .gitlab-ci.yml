@@ -1,6 +1,39 @@
 stages: 
-  - deploy-prod
+  - build-artefacts
   - deploy-staging
+  - deploy-prod
+
+build-artefacts:
+  stage: build-artefacts
+  only:
+    - staging
+    - main
+  tags:
+    - dapp-builder
+  script:
+    - cat $ENV > .env
+    - npm i
+    - REACT_APP_MIX_PANEL_TOKEN=$REACT_APP_MIX_PANEL_TOKEN CI=false npm run build
+    - 7z a ./dapp-v2.7z ../dapp-v2
+  artifacts:
+    paths:
+      - ./dapp-v2.7z
+    expire_in: 1 week
+
+deploy-staging: 
+  stage: deploy-staging
+  only:
+    - staging
+  tags:
+    - dapp-v2-deployer-stage
+  dependencies:
+    - build-artefacts
+  script: 
+    - mv dapp-v2.7z /opt/
+    - cd /opt/
+    - rm -r dapp-v2
+    - 7z x dapp-v2.7z
+    - sudo systemctl restart dapp-v2-staging.service
 
 deploy-prod: 
   stage: deploy-prod
@@ -9,24 +42,12 @@ deploy-prod:
   tags:
     - dapp-v2-deployer
   script: 
-    - rsync -avP ../dapp-v2 /opt/app/dapp-v2-staging
+    - rsync -avP ../dapp-v2 /opt/app/dapp-v2
     - cd /opt/app/dapp-v2/dapp-v2/
     - npm i
     - REACT_APP_MIX_PANEL_TOKEN=$REACT_APP_MIX_PANEL_TOKEN CI=false npm run build
     - sudo systemctl restart dapp-v2.service
 
 
-deploy-staging: 
-  stage: deploy-staging
-  only:
-    - staging
-  tags:
-    - dapp-v2-deployer
-  script: 
-    - rsync -avP ../dapp-v2 /opt/app/dapp-v2-staging
-    - cd /opt/app/dapp-v2-staging/dapp-v2/
-    - npm i
-    - REACT_APP_MIX_PANEL_TOKEN=$REACT_APP_MIX_PANEL_TOKEN CI=false npm run build
-    - sudo systemctl restart dapp-v2-staging.service
 
 

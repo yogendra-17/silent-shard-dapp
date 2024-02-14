@@ -1,11 +1,23 @@
-# dApp-v2
+# DApp-v2
 
-This is dApp companion for the Silent Shard snap.
+## Description
 
-### How to install and run
+This is version 2 of the DApp for Silent Shard Snap
 
-- Ensure you are using Node v16+
-- npm install
-- npm run start
+## Prerequisites
 
-In parallel, serve the snap [Repo Link](https://github.com/silence-laboratories/silent-shard-snap.git)
+- Node.js v16 or higher
+- Check `.env.example` file and setup environment variables before running the app
+
+## Commands
+
+Project is using `yarn` as main package manager
+
+- Run: `yarn` for install all packages
+- Run: `yarn start` for start dev environment
+- Run: `yarn run build` for build your project
+- Run: `yarn run lint` for checking error and fix it
+
+## Testing
+
+Will be there soon
