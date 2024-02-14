@@ -1,9 +1,9 @@
-import * as React from "react";
+import * as React from 'react';
 
-import { cn } from "@/utils/ui";
+import { cn } from '@/utils/ui';
 
-import { Button } from "./ui/button";
-import { Progress } from "./ui/progress";
+import { Button } from './ui/button';
+import { Progress } from './ui/progress';
 
 export interface StepProps {
   onGoingBackClick?: () => void;
@@ -29,15 +29,16 @@ const Layout: React.FunctionComponent<StepNavigatorProps> = ({
     <>
       <div
         className={cn(
-          "relative flex flex-col justify-center py-6 px-10 border rounded border-gray-700 w-[52.75vw] m-auto bg-black",
+          'relative flex flex-col justify-center py-6 px-10 border rounded-[8px] border-gray-700 w-[92vw] lg:w-[52.75vw] m-auto bg-black max-w-[650px]',
           className
-        )}
-      >
-        <Progress
-          className="absolute w-full top-0 right-0"
-          value={step.progressStep * 25}
-          style={{ height: "4px" }}
-        />
+        )}>
+        <div className="absolute w-full top-0 right-0">
+          <Progress
+            className="w-[99.5%]"
+            value={step.progressStep * 25}
+            style={{ height: '4px' }}
+          />
+        </div>
         <Button
           className="rounded-full bg-gray-custom min-w-max aspect-square"
           size="icon"
@@ -46,15 +47,13 @@ const Layout: React.FunctionComponent<StepNavigatorProps> = ({
             if (step.onGoingBackClick) {
               step.onGoingBackClick();
             }
-          }}
-        >
+          }}>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="24"
             height="24"
             viewBox="0 0 24 24"
-            fill="none"
-          >
+            fill="none">
             <path
               fillRule="evenodd"
               clipRule="evenodd"
@@ -69,13 +68,10 @@ const Layout: React.FunctionComponent<StepNavigatorProps> = ({
   ) : (
     <div
       className={cn(
-        "relative flex flex-col justify-center py-6 px-10 border rounded border-gray-700 w-[52.75vw] m-auto bg-black",
+        'relative flex flex-col justify-center py-6 px-10 border rounded-[8px] border-gray-700  w-[92vw] lg:w-[52.75vw] m-auto bg-black max-w-[650px]',
         className
-      )}
-    >
-      {overlay && (
-        <div className="absolute z-50 inset-0 bg-black bg-opacity-50"></div>
-      )}
+      )}>
+      {overlay && <div className="absolute z-50 inset-0 bg-black bg-opacity-50"></div>}
       {children}
     </div>
   );

@@ -1,6 +1,6 @@
 export const compareVersions = (version1: string, version2: string): number => {
-  const parts1 = version1.split(".").map(Number);
-  const parts2 = version2.split(".").map(Number);
+  const parts1 = version1.split('.').map(Number);
+  const parts2 = version2.split('.').map(Number);
 
   const minLength = Math.min(parts1.length, parts2.length);
 

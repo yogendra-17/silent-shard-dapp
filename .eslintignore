@@ -3,3 +3,4 @@ build
 node_modules
 craco.config.js
 tailwind.config.js
+.prettierrc

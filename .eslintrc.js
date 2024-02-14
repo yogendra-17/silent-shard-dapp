@@ -34,7 +34,8 @@ module.exports = {
     "import/no-duplicates": "error",
     "@typescript-eslint/no-non-null-assertion": "off",
     "react/react-in-jsx-scope": "off",
-    "react/prop-types": "off"
+    "react/prop-types": "off",
+    "react/no-deprecated": "off",
   },
   overrides: [
     {

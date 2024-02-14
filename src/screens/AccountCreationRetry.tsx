@@ -1,20 +1,17 @@
-import debounce from "debounce";
+import debounce from 'debounce';
 
-import Layout, { StepProps } from "@/components/Layout";
-import { Button } from "@/components/ui/button";
+import Layout, { StepProps } from '@/components/Layout';
+import { Button } from '@/components/ui/button';
 
 interface AccountCreationRetryProps {
-  handleCreateAccount: () => Promise<void>;
+  onTryAgainClick: () => Promise<void>;
   step: StepProps;
 }
 
-const AccountCreationRetry: React.FC<AccountCreationRetryProps> = ({
-  handleCreateAccount,
-  step,
-}) => {
+const AccountCreationRetry: React.FC<AccountCreationRetryProps> = ({ onTryAgainClick, step }) => {
   return (
     <div className="desc animate__animated animate__slideInUp animate__faster">
-      <Layout step={step} className="h-max md:w-[50%]">
+      <Layout step={step} className="h-max">
         <div className="flex-1 flex flex-col justify-center items-center">
           <svg
             className="h-[30vh]"
@@ -22,8 +19,7 @@ const AccountCreationRetry: React.FC<AccountCreationRetryProps> = ({
             width="180"
             height="180"
             viewBox="0 0 180 180"
-            fill="none"
-          >
+            fill="none">
             <rect
               x="117.461"
               y="46.7422"
@@ -79,13 +75,10 @@ const AccountCreationRetry: React.FC<AccountCreationRetryProps> = ({
               fill="white"
             />
           </svg>
-          <div className="text-white-primary my-8 text-center h2-bold">
-            Something went wrong!
-          </div>
+          <div className="text-white-primary my-8 text-center h2-bold">Something went wrong!</div>
           <Button
-            className="bg-indigo-primary hover:bg-indigo-hover active:bg-indigo-active w-1/2 self-center text-white-primary btn-lg"
-            onClick={debounce(handleCreateAccount, 1000)}
-          >
+            className="max-sm:p-8 w-3/4 bg-indigo-primary hover:bg-indigo-hover active:bg-indigo-active self-center text-white-primary btn-lg"
+            onClick={debounce(onTryAgainClick, 1000)}>
             Try again
           </Button>
         </div>

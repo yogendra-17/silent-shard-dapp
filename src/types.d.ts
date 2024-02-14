@@ -1,12 +1,11 @@
 type PairingStatusType =
-  | "Pairing"
-  | "Unpaired"
-  | "Paired"
-  | "KeygenDone"
-  | "AccountCreated"
-  | "AccountCreationInProgress"
-  | "AccountCreationDenied"
-  | "Unpairing";
+  | 'Pairing'
+  | 'Unpaired'
+  | 'Paired'
+  | 'KeygenDone'
+  | 'AccountCreated'
+  | 'AccountCreationInProgress'
+  | 'AccountCreationDenied';
 
 interface InitPairingResponse {
   qrCode: string;
