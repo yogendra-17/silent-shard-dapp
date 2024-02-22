@@ -1,6 +1,7 @@
 import { QRCodeSVG } from 'qrcode.react';
 
 import Layout, { StepProps } from '@/components/Layout';
+import TermAndPolicy from '@/components/TermAndPolicy';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 
@@ -220,12 +221,7 @@ const Pairing: React.FC<PairingProps> = ({ qr, seconds, onTryAgainClick, step, l
           )}
         </Layout>
         <div className="mt-6 text-[#B6BAC3] text-center label-regular w-[90vw] lg:w-max">
-          <div>
-            By using the Silent Shard Snap and the companion products (Silent Shard DApp and Silent
-            Shard Mobile Application), you are accepting the
-            <span className="mx-1 text-white-primary b2-bold">Terms of use</span>and
-            <span className="mx-1 text-white-primary b2-bold">Privacy Policy</span>
-          </div>
+          <TermAndPolicy />
         </div>
       </div>
     </div>

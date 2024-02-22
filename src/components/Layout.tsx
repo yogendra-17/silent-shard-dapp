@@ -68,7 +68,7 @@ const Layout: React.FunctionComponent<StepNavigatorProps> = ({
   ) : (
     <div
       className={cn(
-        'relative flex flex-col justify-center py-6 px-10 border rounded-[8px] border-gray-700  w-[92vw] lg:w-[52.75vw] m-auto bg-black max-w-[650px]',
+        'relative flex flex-col justify-center py-6 px-10 border rounded-[8px] border-gray-700 w-[92vw] lg:w-[52.75vw] m-auto bg-black max-w-[650px]',
         className
       )}>
       {overlay && <div className="absolute z-50 inset-0 bg-black bg-opacity-50"></div>}

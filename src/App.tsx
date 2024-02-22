@@ -40,7 +40,7 @@ import Homescreen from './screens/Homescreen';
 import Installation from './screens/Installation';
 import Pairing from './screens/Pairing';
 
-let provider: any;
+let provider: EIP1193Provider;
 const App = () => {
   const [isMobileWidthSize, setIsMobileWidthSize] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -293,7 +293,7 @@ const App = () => {
     }
   };
 
-  const handleReset = async () => {
+  const handleReset = useCallback(async () => {
     setQr(null);
     setPairingStatus('Unpaired');
     setSeconds(0);
@@ -308,7 +308,7 @@ const App = () => {
         handleMissingProviderError(error);
       }
     }
-  };
+  }, []);
 
   const handleSnapState = useCallback(async () => {
     try {
@@ -337,7 +337,7 @@ const App = () => {
         handleMissingProviderError(error);
       }
     }
-  }, []);
+  }, [handleReset]);
 
   useEffect(() => {
     if (window.innerWidth < 640) {
@@ -355,7 +355,7 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    window.addEventListener('eip6963:announceProvider', (event: any) => {
+    const onAnnouncement = (event: any) => {
       const providerDetail = event.detail;
       if (
         providerDetail.info.rdns === 'io.metamask' ||
@@ -363,24 +363,27 @@ const App = () => {
         providerDetail.info.rdns === 'io.metamask.mmi'
       ) {
         provider = providerDetail.provider;
-        setOpenInstallDialog(false);
+        setTimeout(() => {
+          setOpenInstallDialog(false);
+          handleSnapVersion();
+          handleSnapState();
+        }, 1000);
       } else {
         setOpenInstallDialog(true);
       }
-    });
-
+    };
+    window.addEventListener('eip6963:announceProvider', onAnnouncement);
     window.dispatchEvent(new Event('eip6963:requestProvider'));
-  }, []);
+    setTimeout(() => {
+      if (!provider) {
+        setOpenInstallDialog(true);
+        setLoading(false);
+      } else {
+        setOpenInstallDialog(false);
+      }
+    }, 300);
 
-  useEffect(() => {
-    if (!provider) {
-      setOpenInstallDialog(true);
-      setLoading(false);
-    } else {
-      setOpenInstallDialog(false);
-      handleSnapVersion();
-      handleSnapState();
-    }
+    return () => window.removeEventListener('eip6963:announceProvider', onAnnouncement);
   }, []);
 
   useEffect(() => {
@@ -419,7 +422,7 @@ const App = () => {
         }
       }
     })();
-  }, [currentStep]);
+  }, [currentStep, handleReset]);
 
   if (loading)
     return (
@@ -440,19 +443,21 @@ const App = () => {
       {/* Body */}
       {currentStep === 3 && currentSnapVersion && latestSnapVersion && account ? (
         <div className="flex flex-col flex-1 bg-pattern">
-          <Homescreen
-            provider={provider}
-            onMissingProvider={(error: unknown) => {
-              if (error instanceof Error) {
-                handleMissingProviderError(error);
-              }
-            }}
-            onLogout={handleReset}
-            onSnapUpdate={handleSnapVersion}
-            currentSnapVersion={currentSnapVersion}
-            latestSnapVersion={latestSnapVersion}
-            account={account!}
-          />
+          {provider && (
+            <Homescreen
+              provider={provider}
+              onMissingProvider={(error: unknown) => {
+                if (error instanceof Error) {
+                  handleMissingProviderError(error);
+                }
+              }}
+              onLogout={handleReset}
+              onSnapUpdate={handleSnapVersion}
+              currentSnapVersion={currentSnapVersion}
+              latestSnapVersion={latestSnapVersion}
+              account={account!}
+            />
+          )}
           <div className="text-white-primary full-w flex mt-auto justify-end mx-auto lg:mr-14 mb-6 label-regular z-50">
             Snap version: {currentSnapVersion}
           </div>

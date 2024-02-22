@@ -26,7 +26,7 @@ interface HomescreenProps {
   currentSnapVersion: string;
   latestSnapVersion: string;
   account: KeyringAccount;
-  provider: any;
+  provider: EIP1193Provider;
 }
 const Homescreen: React.FC<HomescreenProps> = ({
   onLogout,
@@ -57,7 +57,7 @@ const Homescreen: React.FC<HomescreenProps> = ({
   return (
     <div className="animate__animated animate__slideInUp animate__faster">
       {!showRemoveSuccess ? (
-        <Layout overlay={showOverlay} className="border-none bg-transparent h-max py-0">
+        <Layout overlay={showOverlay} className="border-none bg-transparent h-max py-0 px-0">
           {showSuccessBanner && (
             <div className="mb-6 flex-none relative flex flex-col justify-center p-4 border rounded-[8px] bg-[#08170E] border-[#166533] w-full text-[#BBF7D1]">
               <svg
