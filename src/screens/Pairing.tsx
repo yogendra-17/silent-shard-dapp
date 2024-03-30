@@ -1,5 +1,7 @@
 import { QRCodeSVG } from 'qrcode.react';
+import { ReactElement } from 'react';
 
+import { AddressCopyPopover } from '@/components/AddressCopyPopover';
 import Layout, { StepProps } from '@/components/Layout';
 import TermAndPolicy from '@/components/TermAndPolicy';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -11,26 +13,38 @@ interface PairingProps {
   loading: boolean;
   onTryAgainClick: () => void;
   step: StepProps;
+  isRepairing: boolean;
+  currentAddress: string;
 }
-const Pairing: React.FC<PairingProps> = ({ qr, seconds, onTryAgainClick, step, loading }) => {
+const Pairing: React.FC<PairingProps> = ({
+  qr,
+  seconds,
+  onTryAgainClick,
+  step,
+  loading,
+  isRepairing = false,
+  currentAddress,
+}) => {
   const isQrExpired = !(qr && seconds > 0);
   return (
     <div className="desc animate__animated animate__slideInUp animate__faster">
       <div className={`flex flex-col justify-center items-center`}>
         <Layout step={step} className="h-max" disabled={loading}>
-          <div className="h2-bold text-white-primary leading-[38.4px] mt-4">Pair with Phone</div>
+          <div className="h2-bold text-white-primary leading-[38.4px] mt-4">
+            {isRepairing ? 'Recover account on phone' : 'Pair with Phone'}
+          </div>
 
           {loading && (
             <div className="flex flex-col items-center justify-center h-[50vh]">
               <img className="h-[50%] mb-8" src="/v2/loading.gif" alt="loading" />
               <div className="text-center text-white-primary h2-bold" style={{ marginBottom: 140 }}>
-                Pairing...
+                {isRepairing ? 'Restoring...' : 'Pairing...'}
               </div>
             </div>
           )}
           {!loading && (
             <>
-              <div className="b2-regular p-2 flex rounded-lg border bg-[rgba(96,154,250,0.1)] border-[#1e55af] text-[#BFD7FE] my-4">
+              <div className="b2-regular p-2 flex rounded-[8px] border bg-[rgba(96,154,250,0.1)] border-[#1e55af] text-[#BFD7FE] my-4">
                 <svg
                   className="mr-1"
                   xmlns="http://www.w3.org/2000/svg"
@@ -44,10 +58,20 @@ const Pairing: React.FC<PairingProps> = ({ qr, seconds, onTryAgainClick, step, l
                   />
                 </svg>
                 <div>
-                  Connecting your Silent Shard mobile app to your browser generates a distributed
-                  key.
+                  {isRepairing
+                    ? 'Recovery only works if you already have a backup on the phone.'
+                    : 'Connecting your Silent Shard mobile app to your browser generates a distributed key.'}
                 </div>
               </div>
+              {isRepairing && (
+                <div className="flex items-center justify-center">
+                  <div className="b2-regular text-[#B6BAC3]">Currently active account:</div>
+                  <AddressCopyPopover
+                    address={currentAddress}
+                    className="text-[#FDD147] bg-[#000] rounded-[5px] py-[3px] pl-[10px] pr-[7px]"
+                  />
+                </div>
+              )}
               {qr && seconds !== null && seconds > 0 && (
                 <div className="flex flex-col items-center justify-center full-w mt-2">
                   <div
@@ -127,95 +151,171 @@ const Pairing: React.FC<PairingProps> = ({ qr, seconds, onTryAgainClick, step, l
                 className={`b2-regular flex flex-col space-y-2 text-[#B6BAC3] mt-4 ${
                   isQrExpired ? 'opacity-30' : ''
                 }`}>
-                <div>Follow these steps to pair your mobile device with Snap:</div>
-                <div className="flex items-center">
-                  <Avatar className="mr-1">
-                    <AvatarFallback className="bg-gray-custom">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="20"
-                        height="20"
-                        viewBox="0 0 20 20"
-                        fill="none">
-                        <path
-                          fillRule="evenodd"
-                          clipRule="evenodd"
-                          d="M10 1.25C10.3452 1.25 10.625 1.52982 10.625 1.875V12.2411L12.6831 10.1831C12.9271 9.93898 13.3229 9.93898 13.5669 10.1831C13.811 10.4271 13.811 10.8229 13.5669 11.0669L10.4419 14.1919C10.1979 14.436 9.80214 14.436 9.55806 14.1919L6.43306 11.0669C6.18898 10.8229 6.18898 10.4271 6.43306 10.1831C6.67714 9.93898 7.07286 9.93898 7.31694 10.1831L9.375 12.2411V1.875C9.375 1.52982 9.65482 1.25 10 1.25ZM5.3125 7.5C5.06386 7.5 4.8254 7.59877 4.64959 7.77459C4.47377 7.9504 4.375 8.18886 4.375 8.4375V16.5625C4.375 16.8111 4.47377 17.0496 4.64959 17.2254C4.8254 17.4012 5.06386 17.5 5.3125 17.5H14.6875C14.9361 17.5 15.1746 17.4012 15.3504 17.2254C15.5262 17.0496 15.625 16.8111 15.625 16.5625V8.4375C15.625 8.18886 15.5262 7.9504 15.3504 7.77459C15.1746 7.59877 14.9361 7.5 14.6875 7.5H13.125C12.7798 7.5 12.5 7.22018 12.5 6.875C12.5 6.52982 12.7798 6.25 13.125 6.25H14.6875C15.2677 6.25 15.8241 6.48047 16.2343 6.8907C16.6445 7.30094 16.875 7.85734 16.875 8.4375V16.5625C16.875 17.1427 16.6445 17.6991 16.2343 18.1093C15.8241 18.5195 15.2677 18.75 14.6875 18.75H5.3125C4.73234 18.75 4.17594 18.5195 3.7657 18.1093C3.35547 17.6991 3.125 17.1427 3.125 16.5625V8.4375C3.125 7.85734 3.35547 7.30094 3.7657 6.8907C4.17594 6.48047 4.73234 6.25 5.3125 6.25H6.875C7.22018 6.25 7.5 6.52982 7.5 6.875C7.5 7.22018 7.22018 7.5 6.875 7.5H5.3125Z"
-                          fill="#F6F7F9"
-                        />
-                      </svg>
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex items-center flex-wrap flex-1">
-                    Install{' '}
-                    <img
-                      className="mx-2"
-                      src="/v2/sl-logo.png"
-                      alt="sllogosm"
-                      style={{ height: 20, width: 20, borderRadius: 4 }}
-                    />
-                    <div className="mr-1 text-white-primary b2-bold">Silent Shard</div> app from
-                    <a
-                      className="underline mx-1 text-indigo-custom"
-                      href="https://play.google.com/store/apps/details?id=com.silencelaboratories.silentshard"
-                      target="_blank"
-                      rel="noreferrer">
-                      Play Store
-                    </a>{' '}
-                    or{' '}
-                    <a
-                      className="underline mx-1 text-indigo-custom"
-                      href="https://apps.apple.com/in/app/silent-shard/id6468993285"
-                      target="_blank"
-                      rel="noreferrer">
-                      App Store.
-                    </a>
-                  </div>
+                <div>
+                  Follow these steps to{' '}
+                  {isRepairing
+                    ? 'recover your phone with Snap:'
+                    : 'pair your mobile device with Snap:'}
                 </div>
-                <div className="flex items-center">
-                  <Avatar className="mr-1">
-                    <AvatarFallback className="bg-gray-custom">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="20"
-                        height="20"
-                        viewBox="0 0 20 20"
-                        fill="none">
-                        <path
-                          fillRule="evenodd"
-                          clipRule="evenodd"
-                          d="M9.0625 4.375C8.81386 4.375 8.5754 4.47377 8.39959 4.64959C8.22377 4.8254 8.125 5.06386 8.125 5.3125V6.875C8.125 7.22018 7.84518 7.5 7.5 7.5C7.15482 7.5 6.875 7.22018 6.875 6.875V5.3125C6.875 4.73234 7.10547 4.17594 7.5157 3.7657C7.92594 3.35547 8.48234 3.125 9.0625 3.125H15.3125C15.8927 3.125 16.4491 3.35547 16.8593 3.7657C17.2695 4.17594 17.5 4.73234 17.5 5.3125V14.6875C17.5 15.2677 17.2695 15.8241 16.8593 16.2343C16.4491 16.6445 15.8927 16.875 15.3125 16.875H9.375C8.78813 16.875 8.18633 16.6431 7.72845 16.2843C7.27296 15.9274 6.875 15.373 6.875 14.6875V13.125C6.875 12.7798 7.15482 12.5 7.5 12.5C7.84518 12.5 8.125 12.7798 8.125 13.125V14.6875C8.125 14.8649 8.2331 15.0917 8.49939 15.3004C8.76328 15.5071 9.09898 15.625 9.375 15.625H15.3125C15.5611 15.625 15.7996 15.5262 15.9754 15.3504C16.1512 15.1746 16.25 14.9361 16.25 14.6875V5.3125C16.25 5.06386 16.1512 4.8254 15.9754 4.64959C15.7996 4.47377 15.5611 4.375 15.3125 4.375H9.0625ZM10.8081 6.43306C11.0521 6.18898 11.4479 6.18898 11.6919 6.43306L14.8169 9.55806C15.061 9.80214 15.061 10.1979 14.8169 10.4419L11.6919 13.5669C11.4479 13.811 11.0521 13.811 10.8081 13.5669C10.564 13.3229 10.564 12.9271 10.8081 12.6831L12.8661 10.625H3.125C2.77982 10.625 2.5 10.3452 2.5 10C2.5 9.65482 2.77982 9.375 3.125 9.375H12.8661L10.8081 7.31694C10.564 7.07286 10.564 6.67714 10.8081 6.43306Z"
-                          fill="#F6F7F9"
-                        />
-                      </svg>
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">Sign in with your Google account or Apple ID.</div>
-                </div>
-                <div className="flex items-center flex-wrap">
-                  <Avatar className="mr-1">
-                    <AvatarFallback className="bg-gray-custom">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="20"
-                        height="18"
-                        viewBox="0 0 20 18"
-                        fill="none">
-                        <path
-                          fillRule="evenodd"
-                          clipRule="evenodd"
-                          d="M13.6393 1.91938C14.01 1.84969 14.3915 1.86219 14.7569 1.95603C15.1244 2.05041 15.4665 2.22472 15.7588 2.46653C16.0512 2.70835 16.2866 3.0117 16.4482 3.35496C16.6098 3.69821 16.6936 4.0729 16.6937 4.4523V4.4525V5.03865C17.8628 5.24807 18.75 6.27012 18.75 7.49939V14.9994C18.75 16.3801 17.6307 17.4994 16.25 17.4994H3.75C2.36929 17.4994 1.25 16.3801 1.25 14.9994V7.49939L1.25 7.49788V6.2105V6.21031C1.24969 5.61014 1.45878 5.02866 1.84124 4.56612C2.22379 4.10347 2.75579 3.78882 3.3455 3.67644C3.34944 3.67568 3.35339 3.67497 3.35735 3.6743L13.6393 1.91938ZM15.4437 4.4527V4.99939H3.75C3.53826 4.99939 3.33267 5.02571 3.13632 5.07527C3.27005 4.99366 3.41814 4.93576 3.57416 4.90537L13.8552 3.15062C13.8572 3.15026 13.8593 3.1499 13.8614 3.14952C13.8633 3.14918 13.8651 3.14884 13.867 3.14848C14.059 3.11189 14.2567 3.11813 14.446 3.16674C14.6353 3.21536 14.8115 3.30516 14.9621 3.42973C15.1127 3.5543 15.234 3.71058 15.3172 3.8874C15.4005 4.06417 15.4437 4.25712 15.4437 4.4525V4.4527ZM2.5 14.9994L2.5 8.12437V7.49816C2.50067 6.80837 3.06006 6.24939 3.75 6.24939H16.25C16.9404 6.24939 17.5 6.80903 17.5 7.49939V14.9994C17.5 15.6897 16.9404 16.2494 16.25 16.2494H3.75C3.05964 16.2494 2.5 15.6897 2.5 14.9994ZM13.6805 12.2887C13.8861 12.4261 14.1278 12.4994 14.375 12.4994C14.7065 12.4994 15.0245 12.3677 15.2589 12.1333C15.4933 11.8989 15.625 11.5809 15.625 11.2494C15.625 11.0022 15.5517 10.7605 15.4143 10.5549C15.277 10.3494 15.0818 10.1892 14.8534 10.0945C14.6249 9.99993 14.3736 9.97518 14.1311 10.0234C13.8887 10.0716 13.6659 10.1907 13.4911 10.3655C13.3163 10.5403 13.1973 10.7631 13.149 11.0055C13.1008 11.248 13.1255 11.4993 13.2202 11.7277C13.3148 11.9562 13.475 12.1514 13.6805 12.2887Z"
-                          fill="#F6F7F9"
-                        />
-                      </svg>
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 flex-wrap">
-                    Click on{' '}
-                    <span className="mx-1 text-white-primary b2-bold">Pair with a new Account</span>{' '}
-                    and scan the QR code displayed on this screen.
-                  </div>
-                </div>
+                {isRepairing ? (
+                  <>
+                    <InstructionLine
+                      icon={
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="20"
+                          height="20"
+                          viewBox="0 0 20 20"
+                          fill="none">
+                          <path
+                            fillRule="evenodd"
+                            clipRule="evenodd"
+                            d="M17.4716 7.42794C17.904 8.43841 18.1263 9.52629 18.125 10.6254C18.1248 15.111 14.4857 18.75 9.99999 18.75C5.51419 18.75 1.87499 15.1108 1.87499 10.625V10.625C1.87511 8.94458 2.396 7.30553 3.36599 5.93338C4.33597 4.56123 5.70737 3.52342 7.29147 2.96276C7.61686 2.8476 7.97401 3.01802 8.08918 3.34342C8.20435 3.66882 8.03392 4.02597 7.70852 4.14114C6.36803 4.61557 5.20752 5.49379 4.3867 6.65493C3.56589 7.81606 3.1251 9.20304 3.12499 10.625L16.875 10.6254C16.875 10.6252 16.875 10.6251 16.875 10.625V10.6246L16.875 10.6242C16.8762 9.69457 16.6881 8.7744 16.3224 7.91971C15.9587 7.06979 15.4268 6.30229 14.7588 5.66338L14.3051 5.27342L12.3168 7.26175C11.923 7.6555 11.25 7.3766 11.25 6.81957V2.50003C11.25 2.33427 11.3158 2.1753 11.4331 2.05809C11.5503 1.94088 11.7092 1.87503 11.875 1.87503H16.1945C16.7516 1.87503 17.0312 2.54808 16.6367 2.94183L15.1915 4.38702L15.598 4.73639L15.6095 4.74735C16.4056 5.50532 17.0391 6.41735 17.4716 7.42794ZM16.875 10.6254L3.12499 10.625C3.12502 14.4205 6.20456 17.5 9.99999 17.5C13.7953 17.5 16.8748 14.4206 16.875 10.6254Z"
+                            fill="#F6F7F9"
+                          />
+                        </svg>
+                      }>
+                      Sign in to your{' '}
+                      <img
+                        className="mx-2"
+                        src="/v2/sl-logo.png"
+                        alt="sllogosm"
+                        style={{ height: 20, width: 20, borderRadius: 4 }}
+                      />
+                      <span className="mr-1 text-white-primary b2-bold">Silent Shard</span>
+                      <span> app and click on&nbsp;</span>
+                      <div className="text-white-primary b2-bold">“Restore&nbsp;</div>
+                      <span className="text-white-primary b2-bold">existing&nbsp;</span>
+                      <span className="text-white-primary b2-bold">account”</span>
+                    </InstructionLine>
+                    <InstructionLine
+                      icon={
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="20"
+                          height="20"
+                          viewBox="0 0 20 20"
+                          fill="none">
+                          <path
+                            fillRule="evenodd"
+                            clipRule="evenodd"
+                            d="M5.625 2.5C5.29348 2.5 4.97554 2.6317 4.74112 2.86612C4.5067 3.10054 4.375 3.41848 4.375 3.75V16.25C4.375 16.5815 4.5067 16.8995 4.74112 17.1339C4.97554 17.3683 5.29348 17.5 5.625 17.5H14.375C14.7065 17.5 15.0245 17.3683 15.2589 17.1339C15.4933 16.8995 15.625 16.5815 15.625 16.25V8.75H11.25C10.7527 8.75 10.2758 8.55246 9.92418 8.20082C9.57254 7.84919 9.375 7.37228 9.375 6.875V2.5H5.625ZM10.625 3.38388L14.7411 7.5H11.25C11.0842 7.5 10.9253 7.43415 10.8081 7.31694C10.6908 7.19973 10.625 7.04076 10.625 6.875V3.38388ZM3.85723 1.98223C4.32607 1.51339 4.96196 1.25 5.625 1.25H9.48252C9.97962 1.25008 10.4564 1.44755 10.8079 1.79902L10.808 1.79907L16.326 7.31709C16.6774 7.66864 16.8749 8.14538 16.875 8.64248V16.25C16.875 16.913 16.6116 17.5489 16.1428 18.0178C15.6739 18.4866 15.038 18.75 14.375 18.75H5.625C4.96196 18.75 4.32607 18.4866 3.85723 18.0178C3.38839 17.5489 3.125 16.913 3.125 16.25V3.75C3.125 3.08696 3.38839 2.45107 3.85723 1.98223ZM6.25 11.25C6.25 10.9048 6.52982 10.625 6.875 10.625H13.125C13.4702 10.625 13.75 10.9048 13.75 11.25C13.75 11.5952 13.4702 11.875 13.125 11.875H6.875C6.52982 11.875 6.25 11.5952 6.25 11.25ZM6.25 14.375C6.25 14.0298 6.52982 13.75 6.875 13.75H13.125C13.4702 13.75 13.75 14.0298 13.75 14.375C13.75 14.7202 13.4702 15 13.125 15H6.875C6.52982 15 6.25 14.7202 6.25 14.375Z"
+                            fill="#F6F7F9"
+                          />
+                        </svg>
+                      }>
+                      Choose&nbsp;
+                      <span className="text-white-primary b2-bold">Google Password Manager</span>
+                      (Android) /{' '}
+                      <span className="text-white-primary b2-bold">iCloud Keychain</span>(iOS) or
+                      previously Backed-up file to restore.
+                    </InstructionLine>
+                    <InstructionLine
+                      icon={
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="20"
+                          height="18"
+                          viewBox="0 0 20 18"
+                          fill="none">
+                          <path
+                            fillRule="evenodd"
+                            clipRule="evenodd"
+                            d="M13.6393 1.91938C14.01 1.84969 14.3915 1.86219 14.7569 1.95603C15.1244 2.05041 15.4665 2.22472 15.7588 2.46653C16.0512 2.70835 16.2866 3.0117 16.4482 3.35496C16.6098 3.69821 16.6936 4.0729 16.6937 4.4523V4.4525V5.03865C17.8628 5.24807 18.75 6.27012 18.75 7.49939V14.9994C18.75 16.3801 17.6307 17.4994 16.25 17.4994H3.75C2.36929 17.4994 1.25 16.3801 1.25 14.9994V7.49939L1.25 7.49788V6.2105V6.21031C1.24969 5.61014 1.45878 5.02866 1.84124 4.56612C2.22379 4.10347 2.75579 3.78882 3.3455 3.67644C3.34944 3.67568 3.35339 3.67497 3.35735 3.6743L13.6393 1.91938ZM15.4437 4.4527V4.99939H3.75C3.53826 4.99939 3.33267 5.02571 3.13632 5.07527C3.27005 4.99366 3.41814 4.93576 3.57416 4.90537L13.8552 3.15062C13.8572 3.15026 13.8593 3.1499 13.8614 3.14952C13.8633 3.14918 13.8651 3.14884 13.867 3.14848C14.059 3.11189 14.2567 3.11813 14.446 3.16674C14.6353 3.21536 14.8115 3.30516 14.9621 3.42973C15.1127 3.5543 15.234 3.71058 15.3172 3.8874C15.4005 4.06417 15.4437 4.25712 15.4437 4.4525V4.4527ZM2.5 14.9994L2.5 8.12437V7.49816C2.50067 6.80837 3.06006 6.24939 3.75 6.24939H16.25C16.9404 6.24939 17.5 6.80903 17.5 7.49939V14.9994C17.5 15.6897 16.9404 16.2494 16.25 16.2494H3.75C3.05964 16.2494 2.5 15.6897 2.5 14.9994ZM13.6805 12.2887C13.8861 12.4261 14.1278 12.4994 14.375 12.4994C14.7065 12.4994 15.0245 12.3677 15.2589 12.1333C15.4933 11.8989 15.625 11.5809 15.625 11.2494C15.625 11.0022 15.5517 10.7605 15.4143 10.5549C15.277 10.3494 15.0818 10.1892 14.8534 10.0945C14.6249 9.99993 14.3736 9.97518 14.1311 10.0234C13.8887 10.0716 13.6659 10.1907 13.4911 10.3655C13.3163 10.5403 13.1973 10.7631 13.149 11.0055C13.1008 11.248 13.1255 11.4993 13.2202 11.7277C13.3148 11.9562 13.475 12.1514 13.6805 12.2887Z"
+                            fill="#F6F7F9"
+                          />
+                        </svg>
+                      }>
+                      If you’ve chosen Google Password Manager / iCloud Keychain, select the account
+                      that you would like to restore.
+                    </InstructionLine>
+                  </>
+                ) : (
+                  <>
+                    <InstructionLine
+                      icon={
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="20"
+                          height="20"
+                          viewBox="0 0 20 20"
+                          fill="none">
+                          <path
+                            fillRule="evenodd"
+                            clipRule="evenodd"
+                            d="M10 1.25C10.3452 1.25 10.625 1.52982 10.625 1.875V12.2411L12.6831 10.1831C12.9271 9.93898 13.3229 9.93898 13.5669 10.1831C13.811 10.4271 13.811 10.8229 13.5669 11.0669L10.4419 14.1919C10.1979 14.436 9.80214 14.436 9.55806 14.1919L6.43306 11.0669C6.18898 10.8229 6.18898 10.4271 6.43306 10.1831C6.67714 9.93898 7.07286 9.93898 7.31694 10.1831L9.375 12.2411V1.875C9.375 1.52982 9.65482 1.25 10 1.25ZM5.3125 7.5C5.06386 7.5 4.8254 7.59877 4.64959 7.77459C4.47377 7.9504 4.375 8.18886 4.375 8.4375V16.5625C4.375 16.8111 4.47377 17.0496 4.64959 17.2254C4.8254 17.4012 5.06386 17.5 5.3125 17.5H14.6875C14.9361 17.5 15.1746 17.4012 15.3504 17.2254C15.5262 17.0496 15.625 16.8111 15.625 16.5625V8.4375C15.625 8.18886 15.5262 7.9504 15.3504 7.77459C15.1746 7.59877 14.9361 7.5 14.6875 7.5H13.125C12.7798 7.5 12.5 7.22018 12.5 6.875C12.5 6.52982 12.7798 6.25 13.125 6.25H14.6875C15.2677 6.25 15.8241 6.48047 16.2343 6.8907C16.6445 7.30094 16.875 7.85734 16.875 8.4375V16.5625C16.875 17.1427 16.6445 17.6991 16.2343 18.1093C15.8241 18.5195 15.2677 18.75 14.6875 18.75H5.3125C4.73234 18.75 4.17594 18.5195 3.7657 18.1093C3.35547 17.6991 3.125 17.1427 3.125 16.5625V8.4375C3.125 7.85734 3.35547 7.30094 3.7657 6.8907C4.17594 6.48047 4.73234 6.25 5.3125 6.25H6.875C7.22018 6.25 7.5 6.52982 7.5 6.875C7.5 7.22018 7.22018 7.5 6.875 7.5H5.3125Z"
+                            fill="#F6F7F9"
+                          />
+                        </svg>
+                      }>
+                      Install{' '}
+                      <img
+                        className="mx-2"
+                        src="/v2/sl-logo.png"
+                        alt="sllogosm"
+                        style={{ height: 20, width: 20, borderRadius: 4 }}
+                      />
+                      <span className="mr-1 text-white-primary b2-bold">Silent Shard</span> app from
+                      <a
+                        className="underline mx-1 text-indigo-custom"
+                        href="https://play.google.com/store/apps/details?id=com.silencelaboratories.silentshard"
+                        target="_blank"
+                        rel="noreferrer">
+                        Play Store
+                      </a>{' '}
+                      or{' '}
+                      <a
+                        className="underline mx-1 text-indigo-custom"
+                        href="https://apps.apple.com/in/app/silent-shard/id6468993285"
+                        target="_blank"
+                        rel="noreferrer">
+                        App Store.
+                      </a>
+                    </InstructionLine>
+                    <InstructionLine
+                      icon={
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="20"
+                          height="20"
+                          viewBox="0 0 20 20"
+                          fill="none">
+                          <path
+                            fillRule="evenodd"
+                            clipRule="evenodd"
+                            d="M9.0625 4.375C8.81386 4.375 8.5754 4.47377 8.39959 4.64959C8.22377 4.8254 8.125 5.06386 8.125 5.3125V6.875C8.125 7.22018 7.84518 7.5 7.5 7.5C7.15482 7.5 6.875 7.22018 6.875 6.875V5.3125C6.875 4.73234 7.10547 4.17594 7.5157 3.7657C7.92594 3.35547 8.48234 3.125 9.0625 3.125H15.3125C15.8927 3.125 16.4491 3.35547 16.8593 3.7657C17.2695 4.17594 17.5 4.73234 17.5 5.3125V14.6875C17.5 15.2677 17.2695 15.8241 16.8593 16.2343C16.4491 16.6445 15.8927 16.875 15.3125 16.875H9.375C8.78813 16.875 8.18633 16.6431 7.72845 16.2843C7.27296 15.9274 6.875 15.373 6.875 14.6875V13.125C6.875 12.7798 7.15482 12.5 7.5 12.5C7.84518 12.5 8.125 12.7798 8.125 13.125V14.6875C8.125 14.8649 8.2331 15.0917 8.49939 15.3004C8.76328 15.5071 9.09898 15.625 9.375 15.625H15.3125C15.5611 15.625 15.7996 15.5262 15.9754 15.3504C16.1512 15.1746 16.25 14.9361 16.25 14.6875V5.3125C16.25 5.06386 16.1512 4.8254 15.9754 4.64959C15.7996 4.47377 15.5611 4.375 15.3125 4.375H9.0625ZM10.8081 6.43306C11.0521 6.18898 11.4479 6.18898 11.6919 6.43306L14.8169 9.55806C15.061 9.80214 15.061 10.1979 14.8169 10.4419L11.6919 13.5669C11.4479 13.811 11.0521 13.811 10.8081 13.5669C10.564 13.3229 10.564 12.9271 10.8081 12.6831L12.8661 10.625H3.125C2.77982 10.625 2.5 10.3452 2.5 10C2.5 9.65482 2.77982 9.375 3.125 9.375H12.8661L10.8081 7.31694C10.564 7.07286 10.564 6.67714 10.8081 6.43306Z"
+                            fill="#F6F7F9"
+                          />
+                        </svg>
+                      }>
+                      Sign in with your Google account or Apple ID.
+                    </InstructionLine>
+                    <InstructionLine
+                      icon={
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="20"
+                          height="18"
+                          viewBox="0 0 20 18"
+                          fill="none">
+                          <path
+                            fillRule="evenodd"
+                            clipRule="evenodd"
+                            d="M13.6393 1.91938C14.01 1.84969 14.3915 1.86219 14.7569 1.95603C15.1244 2.05041 15.4665 2.22472 15.7588 2.46653C16.0512 2.70835 16.2866 3.0117 16.4482 3.35496C16.6098 3.69821 16.6936 4.0729 16.6937 4.4523V4.4525V5.03865C17.8628 5.24807 18.75 6.27012 18.75 7.49939V14.9994C18.75 16.3801 17.6307 17.4994 16.25 17.4994H3.75C2.36929 17.4994 1.25 16.3801 1.25 14.9994V7.49939L1.25 7.49788V6.2105V6.21031C1.24969 5.61014 1.45878 5.02866 1.84124 4.56612C2.22379 4.10347 2.75579 3.78882 3.3455 3.67644C3.34944 3.67568 3.35339 3.67497 3.35735 3.6743L13.6393 1.91938ZM15.4437 4.4527V4.99939H3.75C3.53826 4.99939 3.33267 5.02571 3.13632 5.07527C3.27005 4.99366 3.41814 4.93576 3.57416 4.90537L13.8552 3.15062C13.8572 3.15026 13.8593 3.1499 13.8614 3.14952C13.8633 3.14918 13.8651 3.14884 13.867 3.14848C14.059 3.11189 14.2567 3.11813 14.446 3.16674C14.6353 3.21536 14.8115 3.30516 14.9621 3.42973C15.1127 3.5543 15.234 3.71058 15.3172 3.8874C15.4005 4.06417 15.4437 4.25712 15.4437 4.4525V4.4527ZM2.5 14.9994L2.5 8.12437V7.49816C2.50067 6.80837 3.06006 6.24939 3.75 6.24939H16.25C16.9404 6.24939 17.5 6.80903 17.5 7.49939V14.9994C17.5 15.6897 16.9404 16.2494 16.25 16.2494H3.75C3.05964 16.2494 2.5 15.6897 2.5 14.9994ZM13.6805 12.2887C13.8861 12.4261 14.1278 12.4994 14.375 12.4994C14.7065 12.4994 15.0245 12.3677 15.2589 12.1333C15.4933 11.8989 15.625 11.5809 15.625 11.2494C15.625 11.0022 15.5517 10.7605 15.4143 10.5549C15.277 10.3494 15.0818 10.1892 14.8534 10.0945C14.6249 9.99993 14.3736 9.97518 14.1311 10.0234C13.8887 10.0716 13.6659 10.1907 13.4911 10.3655C13.3163 10.5403 13.1973 10.7631 13.149 11.0055C13.1008 11.248 13.1255 11.4993 13.2202 11.7277C13.3148 11.9562 13.475 12.1514 13.6805 12.2887Z"
+                            fill="#F6F7F9"
+                          />
+                        </svg>
+                      }>
+                      <div>
+                        Click on{' '}
+                        <span className="mx-1 text-white-primary b2-bold">
+                          Connect your account
+                        </span>{' '}
+                        and scan the QR code displayed on this screen.
+                      </div>
+                    </InstructionLine>
+                  </>
+                )}
               </div>
             </>
           )}
@@ -224,6 +324,20 @@ const Pairing: React.FC<PairingProps> = ({ qr, seconds, onTryAgainClick, step, l
           <TermAndPolicy />
         </div>
       </div>
+    </div>
+  );
+};
+
+const InstructionLine: React.FC<{ icon: ReactElement; children: React.ReactNode }> = ({
+  icon,
+  children,
+}) => {
+  return (
+    <div className="flex items-center flex-wrap">
+      <Avatar className="mr-1">
+        <AvatarFallback className="bg-gray-custom">{icon}</AvatarFallback>
+      </Avatar>
+      <div className="flex items-center flex-wrap flex-1">{children}</div>
     </div>
   );
 };

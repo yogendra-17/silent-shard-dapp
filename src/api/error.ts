@@ -1,7 +1,7 @@
 export class SnapError extends Error {
   code: number;
   constructor(message: string, code: SnapErrorCode | number) {
-    super(JSON.stringify({ message, code }));
+    super(message);
     this.name = 'SnapError';
     this.code = code;
   }
@@ -31,7 +31,6 @@ export enum SnapErrorCode {
   BackupFailed = 20,
 }
 
-export const APPROVAL_TIMEOUT_ERR_MSG = 'timeout';
 export const WRONG_SECRET_KEY_ERR_MSG = 'wrong secret key for the given ciphertext';
 export const MISSING_PROVIDER_ERR_MSG = 'missing metamask provider';
 
@@ -44,3 +43,5 @@ export const CONNECTION_REJECTED_TOAST_MSG =
 export const CONNECTION_REJECTED_UPDATE_SNAP_TOAST_MSG =
   'Connection Request rejected. Please allow the connection request on your MetaMask extension to continue updating your Silent Shard Snap';
 export const ACCOUNT_CREATION_REJECTED_TOAST_MSG = 'Account creation is rejected.';
+export const BROKEN_DATE_TIME_SETTING_ERR_MSG = 'resource-exhausted: Pairing data is expired';
+export const CANCEL_RESTORATION = 'Restoration cancelled';

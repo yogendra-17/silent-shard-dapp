@@ -1,34 +1,59 @@
 import { KeyringSnapRpcClient } from '@metamask/keyring-api';
 
+import {
+  InitPairingResponse,
+  IsPairedResponse,
+  ProviderRpcError,
+  RunKeygenResponse,
+  RunPairingResponse,
+  RunRePairingResponse,
+  SnapVersionResponse,
+} from '@/types';
+
 import { MISSING_PROVIDER_ERR_MSG, SnapError } from './error';
 
 const SNAP_ID = process.env.REACT_APP_SNAP_ID!;
+let keyringClient: KeyringSnapRpcClient | null = null;
 const getKeyringClient = (provider: any) => {
-  if (!provider) {
-    throw Error(MISSING_PROVIDER_ERR_MSG);
+  if (keyringClient) {
+    return keyringClient;
+  } else {
+    if (!provider) {
+      throw Error(MISSING_PROVIDER_ERR_MSG);
+    }
+    keyringClient = new KeyringSnapRpcClient(SNAP_ID, provider);
+    return keyringClient;
   }
-  return new KeyringSnapRpcClient(SNAP_ID, provider);
 };
 
-const connectSnap = async (latestSnapVersion: string | null, provider: any) => {
+const connectSnap = async (snapVersion: string | null, provider: any) => {
   if (!provider) {
-    throw Error(MISSING_PROVIDER_ERR_MSG);
+    throw new SnapError(MISSING_PROVIDER_ERR_MSG, -1);
   }
-  await provider.request({
-    method: 'wallet_requestSnaps',
-    params: {
-      [SNAP_ID]: latestSnapVersion
-        ? {
-            version: latestSnapVersion,
-          }
-        : {},
-    },
-  });
+  try {
+    return await provider.request({
+      method: 'wallet_requestSnaps',
+      params: {
+        [SNAP_ID]: snapVersion
+          ? {
+              version: snapVersion,
+            }
+          : {},
+      },
+    });
+  } catch (error) {
+    const rpcError = error as ProviderRpcError;
+    if (rpcError.code && rpcError.code === 4001) {
+      throw new SnapError(rpcError.message, 4001);
+    } else {
+      throw new SnapError(rpcError.message, -1);
+    }
+  }
 };
 
 const isConnected = async (provider: any) => {
   if (!provider) {
-    throw Error(MISSING_PROVIDER_ERR_MSG);
+    throw new SnapError(MISSING_PROVIDER_ERR_MSG, -1);
   }
   try {
     const result = await provider.request({
@@ -57,8 +82,12 @@ const unPair = async (provider: any) => {
   return await callSnap<object>(provider, 'tss_unpair', null);
 };
 
-const initPairing = async (provider: any) => {
-  return await callSnap<InitPairingResponse>(provider, 'tss_initPairing', null);
+const initPairing = async (provider: any, isRePair: boolean) => {
+  return await callSnap<InitPairingResponse>(provider, 'tss_initPairing', [{ isRePair }]);
+};
+
+const runRePairing = async (provider: any) => {
+  return await callSnap<RunRePairingResponse>(provider, 'tss_runRePairing', null);
 };
 
 const snapVersion = async (provider: any) => {
@@ -70,11 +99,11 @@ const callSnap = async <T>(
   method: string,
   params: unknown | null
 ): Promise<{
-  response: T | null;
+  response: T;
   snapErr: SnapError | null;
 }> => {
   if (!provider) {
-    throw Error(MISSING_PROVIDER_ERR_MSG);
+    throw new SnapError(MISSING_PROVIDER_ERR_MSG, -1);
   }
   const request = { method: method, params: params ?? [] };
   try {
@@ -90,26 +119,21 @@ const callSnap = async <T>(
       snapErr: null,
     };
   } catch (error: unknown) {
-    if (error instanceof Error) {
-      return {
-        response: null,
-        snapErr: new SnapError(error.message, -1),
-      };
-    } else {
+    if ((error as ProviderRpcError).code) {
       const rpcError = error as ProviderRpcError;
-      try {
-        const snapErr = JSON.parse(rpcError.message);
-        return {
-          response: null,
-          snapErr,
-        };
-      } catch (error: unknown) {
-        return {
-          response: null,
-          snapErr: new SnapError(rpcError.message, rpcError.code),
-        };
-      }
+      throw parseRpcError(rpcError);
     }
+    throw new SnapError((error as Error).message, -1);
+  }
+};
+
+const parseRpcError = (rpcError: ProviderRpcError) => {
+  try {
+    const snapErr = JSON.parse(rpcError.message) as SnapError;
+    // https://github.com/MetaMask/rpc-errors/blob/main/src/error-constants.ts
+    return new SnapError(snapErr.message, snapErr.code);
+  } catch (error: unknown) {
+    return new SnapError((rpcError as Error).message, rpcError.code);
   }
 };
 
@@ -119,8 +143,10 @@ export {
   initPairing,
   isConnected,
   isPaired,
+  parseRpcError,
   runKeygen,
   runPairing,
+  runRePairing,
   snapVersion,
   unPair,
 };

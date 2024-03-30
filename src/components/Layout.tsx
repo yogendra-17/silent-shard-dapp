@@ -7,7 +7,7 @@ import { Progress } from './ui/progress';
 
 export interface StepProps {
   onGoingBackClick?: () => void;
-  progressStep: number;
+  progressBarValue: number;
 }
 
 interface StepNavigatorProps {
@@ -33,11 +33,7 @@ const Layout: React.FunctionComponent<StepNavigatorProps> = ({
           className
         )}>
         <div className="absolute w-full top-0 right-0">
-          <Progress
-            className="w-[99.5%]"
-            value={step.progressStep * 25}
-            style={{ height: '4px' }}
-          />
+          <Progress className="w-[99.5%]" value={step.progressBarValue} style={{ height: '4px' }} />
         </div>
         <Button
           className="rounded-full bg-gray-custom min-w-max aspect-square"

@@ -2,15 +2,23 @@ import './App.css';
 import 'react-toastify/dist/ReactToastify.css';
 
 import { KeyringAccount } from '@metamask/keyring-api';
-// import { useSDK } from '@metamask/sdk-react'; // TODO: Use metamask/sdk for v3.1
 import { useCallback, useEffect, useState } from 'react';
 import { toast, ToastContainer } from 'react-toastify';
 
 import {
+  AnalyticEvent,
+  EventName,
+  EventStatus,
+  EventType,
+  REJECTED_ERROR,
+  trackAnalyticEvent,
+} from './api/analytic';
+import {
   ACCOUNT_CREATION_REJECTED_TOAST_MSG,
-  APPROVAL_TIMEOUT_ERR_MSG,
+  BROKEN_DATE_TIME_SETTING_ERR_MSG,
+  CANCEL_RESTORATION,
   CONNECTION_REJECTED_TOAST_MSG,
-  LOST_INTERNET_TOAST_MSG,
+  CONNECTION_REJECTED_UPDATE_SNAP_TOAST_MSG,
   MISSING_PROVIDER_ERR_MSG,
   SnapError,
   UNKNOWN_ERR_TOAST_MSG,
@@ -23,289 +31,619 @@ import {
   initPairing,
   isConnected,
   isPaired,
+  parseRpcError,
   runKeygen,
   runPairing,
+  runRePairing,
   snapVersion,
   unPair,
 } from './api/snap';
-import LogoSvg from './components/LogoSvg';
+import NavBar from './components/NavBar';
 import Spinner from './components/Spinner';
 import { ErrorToast } from './components/Toast/error';
 import { Button } from './components/ui/button';
 import { Dialog, DialogContent } from './components/ui/dialog';
+import { useOfflineStatus } from './hooks/useOfflineStatus';
 import AccountCreation from './screens/AccountCreation';
-import AccountCreationRetry from './screens/AccountCreationRetry';
 import BackupRecovery from './screens/BackupRecovery';
+import ErrorState from './screens/ErrorState';
 import Homescreen from './screens/Homescreen';
 import Installation from './screens/Installation';
+import MismatchRepairing from './screens/MismatchRepairing';
 import Pairing from './screens/Pairing';
+import { AppState, AppStatus, Callback, DeviceOS, ProviderRpcError, SnapMetaData } from './types';
 
 let provider: EIP1193Provider;
 const App = () => {
-  const [isMobileWidthSize, setIsMobileWidthSize] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [currentStep, setCurrentStep] = useState(0);
-  const [qr, setQr] = useState<string | null>(null);
-  const [seconds, setSeconds] = useState<number>(0);
-  const [pairingStatus, setPairingStatus] = useState<PairingStatusType>('Unpaired');
-  const [account, setAccount] = useState<KeyringAccount | null>(null);
-  const [currentSnapVersion, setCurrentSnapVersion] = useState<string | null>(null);
-  const [latestSnapVersion, setLatestSnapVersion] = useState<string | null>(null);
+  const isMobileWidthSize = window.innerWidth < 640;
+  useOfflineStatus(); // handle internet disconnection
 
-  const [deviceOS, setDeviceOS] = useState<string>('ios');
+  const [loading, setLoading] = useState(true);
   const [openInstallDialog, setOpenInstallDialog] = useState(false);
   const [openMmConnectDialog, setOpenMmConnectDialog] = useState(false);
-
-  const handleOpenMetaMaskCIExtension = () => {
-    const userAgent = window.navigator.userAgent;
-    if (userAgent.includes('Firefox')) {
-      window.open('https://metamask.io/download/', '_blank');
-    } else {
-      window.open('https://metamask.io/download/', '_blank');
-    }
-  };
-
-  const handleSnapErrorTemplate = (snapErr: SnapError, middleHandler?: () => void) => {
+  const [appState, setAppState] = useState<AppState>({ status: AppStatus.Unpaired });
+  const [snapMetadata, setSnapMetadata] = useState<SnapMetaData | undefined>();
+  const [deviceOS, setDeviceOS] = useState<DeviceOS>(DeviceOS.android);
+  const handleSnapErrorTemplate = (snapErr: SnapError, errorHandler?: Callback) => {
     const { code, message } = snapErr;
     if (code === 4100) {
-      setCurrentStep(0);
-      console.error(message);
+      setAppState({ status: AppStatus.Unpaired });
       throw new Error(UNKNOWN_ERR_TOAST_MSG);
     }
 
-    if (middleHandler) {
-      middleHandler();
+    if (code === -1) {
+      console.error('Snap error:', snapErr);
+      if (message === MISSING_PROVIDER_ERR_MSG) {
+        setOpenInstallDialog(true);
+      }
+      return;
     }
-
-    if (code === -1) return;
     if (code !== 0 && message) {
-      console.error(message);
-      throw new Error(UNKNOWN_ERR_TOAST_MSG);
+      if (message === WRONG_SECRET_KEY_ERR_MSG) {
+        toast(<ErrorToast msg={WRONG_SECRET_KEY_TOAST_MSG} />);
+      } else if (code === 1) {
+        // Firebase errors
+        if (message === BROKEN_DATE_TIME_SETTING_ERR_MSG) {
+          toast(<ErrorToast msg={'Please check your date and time settings and try again.'} />);
+        } else if (message === 'timeout') {
+          return;
+        }
+      } else if (code === 4) {
+        toast(<ErrorToast msg={'Backup data is invalid'} />);
+      } else {
+        toast(<ErrorToast msg={UNKNOWN_ERR_TOAST_MSG} />);
+      }
+    }
+
+    if (errorHandler) {
+      errorHandler();
     }
   };
 
-  const handleMissingProviderError = (error: Error) => {
-    if (error.message === MISSING_PROVIDER_ERR_MSG) {
-      setOpenInstallDialog(true);
-    }
-  };
-
-  // TODO: Use metamask/sdk for v3.1
-  // const connect = async () => {
-  //   try {
-  //     await sdk?.connect();
-  //     if (connected) {
-  //       const providerName: unknown = await provider?.request({
-  //         method: 'web3_clientVersion',
-  //       });
-  //       if (!providerName)
-  //         return {
-  //           version: leastSupportedMetaMaskVersion,
-  //           isSuccess: false,
-  //         };
-  //       const currentMetaMaskVersion = (providerName as string).split('/')[1].slice(1) as string;
-  //       console.log(currentMetaMaskVersion);
-  //       setCurrentMetaMaskVersion(currentMetaMaskVersion);
-  //     }
-  //   } catch (error) {
-  //     toast(<ErrorToast msg={'Uh oh! Please connect with MetaMask.'} />);
-  //   }
-  // };
-
+  let mmAddress = '';
   const handleMetaMaskConnect = async () => {
     try {
-      await provider?.request({ method: 'eth_requestAccounts' }); // Ask MetaMask to unlock the wallet if the user locked it
-      await connectSnap(latestSnapVersion, provider);
-      const snapVersionRes = await snapVersion(provider);
-      if (snapVersionRes.response) {
-        setCurrentSnapVersion(snapVersionRes.response.currentVersion);
-        setLatestSnapVersion(snapVersionRes.response.latestVersion);
-      }
+      const addresses: any = await provider?.request({ method: 'eth_requestAccounts' }); // Ask MetaMask to unlock the wallet if the user locked it
+      mmAddress = addresses?.[0];
+      trackAnalyticEvent(
+        EventName.connect_metamask,
+        new AnalyticEvent() //
+          .setStatus(EventStatus.approved)
+          .setMetamaskAddress(mmAddress)
+      );
     } catch (error: unknown) {
       setOpenMmConnectDialog(false);
-      if (error instanceof Error) {
-        handleMissingProviderError(error);
-        console.error(error.message);
+      if (error instanceof SnapError) {
+        if (error.code === 4001) {
+          toast(<ErrorToast msg={CONNECTION_REJECTED_TOAST_MSG} />); // Connection is rejected
+          trackAnalyticEvent(
+            EventName.connect_metamask,
+            new AnalyticEvent() //
+              .setStatus(EventStatus.failed)
+              .setMetamaskAddress(mmAddress)
+              .setError(REJECTED_ERROR)
+          );
+        } else {
+          handleSnapErrorTemplate(error);
+        }
       } else {
-        const rpcError = error as ProviderRpcError;
-        if (rpcError.code === 4001) toast(<ErrorToast msg={CONNECTION_REJECTED_TOAST_MSG} />);
+        trackAnalyticEvent(
+          EventName.connect_metamask,
+          new AnalyticEvent() //
+            .setStatus(EventStatus.failed)
+            .setMetamaskAddress(mmAddress)
+            .setError((error as Error).message)
+        );
       }
     }
   };
 
-  const handleInstallSnap = async () => {
+  const handleRequestSnap = async () => {
+    try {
+      await connectSnap(snapMetadata?.latestSnapVersion || null, provider);
+      trackAnalyticEvent(
+        EventName.install_snap,
+        new AnalyticEvent() //
+          .setStatus(EventStatus.approved)
+          .setMetamaskAddress(mmAddress)
+      );
+    } catch (error: unknown) {
+      setOpenMmConnectDialog(false);
+      if (error instanceof SnapError) {
+        if (error.code === 4001) {
+          toast(<ErrorToast msg={CONNECTION_REJECTED_TOAST_MSG} />); // Connection is rejected
+          trackAnalyticEvent(
+            EventName.install_snap,
+            new AnalyticEvent() //
+              .setStatus(EventStatus.failed)
+              .setMetamaskAddress(mmAddress)
+              .setError(REJECTED_ERROR)
+          );
+        } else {
+          handleSnapErrorTemplate(error);
+        }
+      } else {
+        trackAnalyticEvent(
+          EventName.install_snap,
+          new AnalyticEvent() //
+            .setStatus(EventStatus.failed)
+            .setMetamaskAddress(mmAddress)
+            .setError((error as Error).message)
+        );
+      }
+    }
+  };
+
+  const handleConnectMmClick = async () => {
     try {
       await handleMetaMaskConnect();
+      await handleRequestSnap();
       if (await isConnected(provider)) {
-        await handleInitAndRunPairing();
+        await handleInitPairing().then((isInitPairingDone) => {
+          if (isInitPairingDone) {
+            handleRunPairing().then((isPairingDone) => {
+              if (isPairingDone) {
+                handleCreateAccount();
+              }
+            });
+          }
+        });
       }
     } catch (error) {
-      if (error instanceof Error) {
-        handleMissingProviderError(error);
-        console.error(error.message);
-      } else {
-        const rpcError = error as ProviderRpcError;
-        if (rpcError.code === 4001) toast(<ErrorToast msg={CONNECTION_REJECTED_TOAST_MSG} />);
+      if (error instanceof SnapError) {
+        handleSnapErrorTemplate(error);
       }
     }
   };
 
-  const handleInitAndRunPairing = async () => {
-    setOpenMmConnectDialog(true);
+  const handleInitPairing: () => Promise<boolean | undefined> = async () => {
     try {
-      if (pairingStatus !== 'Unpaired') return;
-      setPairingStatus('Pairing');
-      const accounts = await getKeyringClient(provider).listAccounts();
+      setOpenMmConnectDialog(true);
+      const accounts = await getKeyringClient(provider)
+        .listAccounts()
+        .catch((error) => {
+          throw new SnapError((error as Error).message, -1);
+        });
       if (accounts.length > 0) {
-        const isPairedRes = await isPaired(provider);
-        if (isPairedRes.response?.isPaired) {
-          setPairingStatus('Paired');
-          setAccount(accounts[0]);
-          setCurrentStep(3);
-          return;
+        setAppState({
+          status: AppStatus.AccountCreated,
+          account: accounts[0],
+        });
+      }
+      const initPairingRes = await initPairing(provider, false);
+      trackAnalyticEvent(
+        EventName.approve_snap,
+        new AnalyticEvent() //
+          .setStatus(EventStatus.approved)
+          .setMetamaskAddress(mmAddress)
+      );
+      setAppState({
+        status: AppStatus.Pairing,
+        qr: initPairingRes.response.qrCode,
+        seconds: 30,
+      });
+
+      return true;
+    } catch (error) {
+      if (error instanceof SnapError) {
+        if (error.code === 2) {
+          // Reject init pairing
+          trackAnalyticEvent(
+            EventName.approve_snap,
+            new AnalyticEvent() //
+              .setStatus(EventStatus.failed)
+              .setMetamaskAddress(mmAddress)
+              .setError(REJECTED_ERROR)
+          );
         } else {
-          accounts.forEach(async (a) => {
-            try {
-              await getKeyringClient(provider).deleteAccount(a.id);
-            } catch (error: unknown) {
-              if (error instanceof Error) {
-                handleMissingProviderError(error);
-              }
-              console.error(error);
-            }
-          });
-        }
-      }
-
-      const initPairingRes = await initPairing(provider);
-      if (initPairingRes.snapErr && initPairingRes.response === null) {
-        const { code } = initPairingRes.snapErr;
-        handleSnapErrorTemplate(initPairingRes.snapErr, () => {
-          if (code === 4) {
-            setCurrentStep(3);
-          }
-        });
-      } else if (initPairingRes.response) {
-        setCurrentStep(1);
-        setOpenMmConnectDialog(false);
-        setQr(initPairingRes.response.qrCode);
-        setSeconds(30);
-      }
-
-      const runPairingRes = await runPairing(provider);
-      if (runPairingRes.snapErr && runPairingRes.response === null) {
-        const { code } = runPairingRes.snapErr;
-        handleSnapErrorTemplate(runPairingRes.snapErr, () => {
-          if (code === 17) {
-            setCurrentStep(0);
-            throw new SnapError('Backup data is invalid', code);
-          }
-        });
-      }
-
-      setPairingStatus('Paired');
-      if (runPairingRes.response?.deviceName) {
-        try {
-          const deviceOS = runPairingRes.response?.deviceName.split(':')[1].split(',')[0].trim();
-          setDeviceOS(deviceOS);
-        } catch (error) {
-          console.error('Error while getting device OS from deviceName:', error);
-        }
-      }
-      if (runPairingRes.response?.address) {
-        setPairingStatus('KeygenDone');
-        await handleCreateAccount();
-      } else if (runPairingRes.response) {
-        const runKeygenRes = await runKeygen(provider);
-        if (runKeygenRes.snapErr && runKeygenRes.response === null) {
-          handleSnapErrorTemplate(runKeygenRes.snapErr);
-        } else if (runKeygenRes.response) {
-          setPairingStatus('KeygenDone');
-          await handleCreateAccount();
+          handleSnapErrorTemplate(error);
         }
       } else {
-        throw new Error(UNKNOWN_ERR_TOAST_MSG);
+        trackAnalyticEvent(
+          EventName.approve_snap,
+          new AnalyticEvent() //
+            .setStatus(EventStatus.failed)
+            .setMetamaskAddress(mmAddress)
+            .setError((error as Error).message)
+        );
+      }
+    } finally {
+      setOpenMmConnectDialog(false);
+    }
+  };
+
+  let isRecovered = false;
+  const handleRunPairing: () => Promise<boolean | undefined> = async () => {
+    try {
+      const runPairingRes = await runPairing(provider);
+      trackAnalyticEvent(
+        EventName.pairing_device,
+        new AnalyticEvent().setStatus(EventStatus.initiated)
+      );
+
+      try {
+        const deviceOS = runPairingRes.response?.deviceName
+          .split(':')[1]
+          .split(',')[0]
+          .trim() as DeviceOS;
+        setDeviceOS(deviceOS);
+      } catch (error) {
+        console.error('Error while parsing device OS from deviceName:', error);
+        throw new SnapError((error as Error).message, -1);
+      }
+
+      if (runPairingRes.response?.address) {
+        isRecovered = true;
+        setAppState({
+          status: AppStatus.AccountCreationInProgress,
+        });
+        trackAnalyticEvent(
+          EventName.pairing_device,
+          new AnalyticEvent()
+            .setStatus(EventStatus.success)
+            .setType(EventType.recovered)
+            .setPublicKey(runPairingRes.response.address)
+        );
+      } else {
+        isRecovered = false;
+        setAppState({
+          status: AppStatus.Paired,
+          qr: null,
+          seconds: 0,
+        });
+        const runKgResp = await runKeygen(provider);
+        setAppState({
+          status: AppStatus.AccountCreationInProgress,
+        });
+        trackAnalyticEvent(
+          EventName.pairing_device,
+          new AnalyticEvent() //
+            .setStatus(EventStatus.success)
+            .setType(EventType.new_account)
+            .setPublicKey(runKgResp.response?.address)
+        );
+      }
+
+      return true;
+    } catch (error: unknown) {
+      trackAnalyticEvent(
+        EventName.pairing_device,
+        new AnalyticEvent() //
+          .setStatus(EventStatus.failed)
+          .setType(isRecovered ? EventType.recovered : EventType.new_account)
+          .setError((error as Error).message)
+      );
+      if (error instanceof SnapError) {
+        handleSnapErrorTemplate(error, () => {
+          setAppState({
+            status: AppStatus.Unpaired,
+          });
+        });
+      }
+    }
+  };
+
+  const handleRePairing = async () => {
+    let isRepairSameAccount = false;
+    let currentAccount: KeyringAccount;
+    let publicKey = '';
+    try {
+      if (
+        appState.status !== AppStatus.RePaired &&
+        appState.status !== AppStatus.AccountCreated &&
+        appState.status !== AppStatus.RePairing &&
+        appState.status !== AppStatus.MismatchRepairing
+      ) {
+        return;
+      }
+      currentAccount = appState.account;
+      publicKey = appState.account?.address;
+      trackAnalyticEvent(EventName.recover_on_phone, new AnalyticEvent().setPublicKey(publicKey));
+
+      const isRePairingFromCancelRestoration = appState.status === AppStatus.MismatchRepairing;
+      const initPairingRes = await initPairing(provider, true);
+      setAppState({
+        status: AppStatus.RePairing,
+        qr: initPairingRes.response.qrCode,
+        seconds: 30,
+        account: appState.account,
+      });
+      if (isRePairingFromCancelRestoration) {
+        toast(<ErrorToast msg={CANCEL_RESTORATION} />);
+      }
+
+      const runRePairingRes = await runRePairing(provider);
+      trackAnalyticEvent(
+        EventName.re_pairing_device,
+        new AnalyticEvent() //
+          .setStatus(EventStatus.initiated)
+          .setPublicKey(publicKey)
+      );
+      const currentAddress = runRePairingRes.response.currentAccountAddress[0];
+      const recoveredAddress = runRePairingRes.response.newAccountAddress;
+      if (recoveredAddress === null) {
+        setAppState({
+          status: AppStatus.AccountCreated,
+          account: appState.account,
+        });
+        toast(
+          <ErrorToast msg="Restoring failed. Please restore existing account with at least one backup on your phone" />
+        );
+        trackAnalyticEvent(
+          EventName.re_pairing_device,
+          new AnalyticEvent() //
+            .setStatus(EventStatus.failed)
+            .setPublicKey(publicKey)
+            .setError('No backup found on phone')
+        );
+        return;
+      }
+
+      isRepairSameAccount = currentAddress === recoveredAddress;
+      if (isRepairSameAccount) {
+        const accounts = await getKeyringClient(provider).listAccounts();
+        if (accounts.length > 0) {
+          setAppState({
+            status: AppStatus.RePaired,
+            account: accounts[0],
+          });
+          trackAnalyticEvent(
+            EventName.re_pairing_device,
+            new AnalyticEvent()
+              .setStatus(EventStatus.success)
+              .setType(EventType.same_account)
+              .setPublicKey(publicKey)
+          );
+        }
+      } else {
+        setAppState({
+          status: AppStatus.MismatchRepairing,
+          account: appState.account,
+          snapAccountAddress: currentAddress,
+          phoneAccountAddress: recoveredAddress,
+        });
+        localStorage.setItem(
+          'MismatchRepairing',
+          JSON.stringify({
+            snapAccountAddress: currentAddress,
+            phoneAccountAddress: recoveredAddress,
+          })
+        );
+        trackAnalyticEvent(
+          EventName.re_pairing_device,
+          new AnalyticEvent()
+            .setStatus(EventStatus.success)
+            .setType(EventType.different_account)
+            .setPublicKey(recoveredAddress)
+        );
       }
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        handleMissingProviderError(error);
-        if (error.message === WRONG_SECRET_KEY_ERR_MSG) {
-          toast(<ErrorToast msg={WRONG_SECRET_KEY_TOAST_MSG} />);
-        } else if (error.message === APPROVAL_TIMEOUT_ERR_MSG) {
-          console.error(error.message);
-        } else {
-          console.error(error.message);
-        }
+      trackAnalyticEvent(
+        EventName.re_pairing_device,
+        new AnalyticEvent()
+          .setStatus(EventStatus.failed)
+          .setType(isRepairSameAccount ? EventType.same_account : EventType.different_account)
+          .setPublicKey(publicKey)
+          .setError((error as Error).message)
+      );
+      if (error instanceof SnapError) {
+        handleSnapErrorTemplate(error, () => {
+          setAppState({
+            status: AppStatus.AccountCreated,
+            account: currentAccount,
+          });
+        });
       }
-      setPairingStatus('Unpaired');
-      setSeconds(0);
-      setOpenMmConnectDialog(false);
     }
   };
 
   const handleCreateAccount = async () => {
+    if (!(await isConnected(provider))) {
+      await handleMetaMaskConnect();
+    }
+    let publicKey = '';
     try {
-      if (!(await isConnected(provider))) {
-        await handleMetaMaskConnect();
-      }
-      if (!(await isConnected(provider))) {
-        await handleMetaMaskConnect();
-      }
-      if (pairingStatus === 'AccountCreationInProgress') return;
-      setPairingStatus('AccountCreationInProgress');
-      const account = await getKeyringClient(provider).createAccount();
-      setAccount(account);
-      setPairingStatus('AccountCreated');
-      setCurrentStep(2);
+      const changeAppStateBeforeAccountCreation = () => {
+        appState.status !== AppStatus.MismatchRepairing &&
+        appState.status !== AppStatus.AccountRestorationDenied
+          ? setAppState({ status: AppStatus.AccountCreationInProgress })
+          : setAppState({ status: AppStatus.AccountRestorationInProgress });
+      };
+
+      const changeAppStateAfterAccountCreation = () => {
+        appState.status !== AppStatus.AccountRestorationInProgress
+          ? setAppState({
+              status: AppStatus.BackupInstruction,
+            })
+          : setAppState({
+              status: AppStatus.AccountCreated,
+              account,
+            });
+      };
+
+      changeAppStateBeforeAccountCreation();
+      const account = await getKeyringClient(provider)
+        .createAccount()
+        .catch((error) => {
+          const rpcError = error as ProviderRpcError;
+          const snapErr = parseRpcError(rpcError);
+          throw snapErr;
+        });
+      publicKey = account.address;
+      trackAnalyticEvent(
+        EventName.snap_account_created,
+        new AnalyticEvent()
+          .setSuccess(true)
+          .setType(
+            isRecovered ||
+              appState.status === AppStatus.MismatchRepairing ||
+              appState.status === AppStatus.AccountRestorationInProgress
+              ? EventType.recovered
+              : EventType.new_account
+          )
+          .setPublicKey(publicKey)
+          .setWallet()
+      );
+      changeAppStateAfterAccountCreation();
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        handleMissingProviderError(error);
-        toast(<ErrorToast msg={UNKNOWN_ERR_TOAST_MSG} />);
-      } else {
-        const rpcError = error as ProviderRpcError;
-        if (rpcError.code === -32600) {
-          console.error('Disconnected from Silent Shard. Need to reconnect.');
+      if (error instanceof SnapError) {
+        if (error.code === 14) {
+          toast(<ErrorToast msg={ACCOUNT_CREATION_REJECTED_TOAST_MSG} />);
+          trackAnalyticEvent(
+            EventName.snap_account_created,
+            new AnalyticEvent()
+              .setSuccess(false)
+              .setType(
+                isRecovered ||
+                  appState.status === AppStatus.MismatchRepairing ||
+                  appState.status === AppStatus.AccountRestorationInProgress
+                  ? EventType.recovered
+                  : EventType.new_account
+              )
+              .setPublicKey(publicKey)
+              .setError(REJECTED_ERROR)
+              .setWallet()
+          );
         } else {
-          try {
-            const snapErr = JSON.parse(rpcError.message);
-            if (snapErr.code === 14) {
-              toast(<ErrorToast msg={ACCOUNT_CREATION_REJECTED_TOAST_MSG} />);
-            }
-          } catch (error: unknown) {
-            toast(<ErrorToast msg={UNKNOWN_ERR_TOAST_MSG} />);
-          }
+          handleSnapErrorTemplate(error);
         }
+      } else {
+        trackAnalyticEvent(
+          EventName.snap_account_created,
+          new AnalyticEvent()
+            .setSuccess(false)
+            .setType(
+              isRecovered ||
+                appState.status === AppStatus.MismatchRepairing ||
+                appState.status === AppStatus.AccountRestorationInProgress
+                ? EventType.recovered
+                : EventType.new_account
+            )
+            .setPublicKey(publicKey)
+            .setError((error as SnapError).message)
+            .setWallet()
+        );
       }
-      setPairingStatus('AccountCreationDenied');
-      setSeconds(0);
+      appState.status === AppStatus.MismatchRepairing
+        ? setAppState({ status: AppStatus.AccountRestorationDenied })
+        : setAppState({ status: AppStatus.AccountCreationDenied });
     }
   };
 
-  const handleSnapVersion = async () => {
+  const handleOnBackupInstructionDone = async () => {
+    try {
+      const account = await getKeyringClient(provider).createAccount();
+      await handleSnapVersion();
+      setAppState({
+        status: AppStatus.AccountCreated,
+        account,
+      });
+    } catch (error: unknown) {
+      if (error instanceof SnapError) {
+        handleSnapErrorTemplate(error);
+      }
+    }
+  };
+
+  const handleDeleteAccount: () => Promise<boolean | undefined> = async () => {
+    let publicKey = '';
+    try {
+      const client = getKeyringClient(provider);
+      const accounts = await client.listAccounts().catch((error) => {
+        throw new SnapError((error as Error).message, -1);
+      });
+      if (accounts.length > 0) {
+        publicKey = accounts[0].address;
+        await client.deleteAccount(accounts[0].id).catch((error) => {
+          const rpcError = error as ProviderRpcError;
+          if (rpcError.code === -32603) {
+            console.error('User denied account removal.');
+            throw new SnapError('User denied account removal.', -32603);
+          } else {
+            throw new SnapError((error as Error).message, -1);
+          }
+        });
+        trackAnalyticEvent(
+          EventName.delete_account,
+          new AnalyticEvent() //
+            .setStatus(EventStatus.success)
+            .setPublicKey(publicKey)
+            .setWallet()
+        );
+        return true;
+      }
+    } catch (error) {
+      if (error instanceof SnapError) {
+        if (error.code === -32603) {
+          trackAnalyticEvent(
+            EventName.delete_account,
+            new AnalyticEvent() //
+              .setStatus(EventStatus.cancelled)
+              .setPublicKey(publicKey ?? '')
+              .setWallet()
+          );
+        } else {
+          handleSnapErrorTemplate(error);
+          trackAnalyticEvent(
+            EventName.delete_account,
+            new AnalyticEvent() //
+              .setStatus(EventStatus.failed)
+              .setPublicKey(publicKey)
+              .setWallet()
+              .setError((error as Error).message)
+          );
+        }
+      }
+    }
+  };
+
+  const handleSnapVersion = useCallback(async () => {
     try {
       const snapVersionRes = await snapVersion(provider);
-      setCurrentSnapVersion(snapVersionRes.response?.currentVersion ?? null);
-      setLatestSnapVersion(snapVersionRes.response?.latestVersion ?? null);
+      if (snapVersionRes.response)
+        setSnapMetadata({
+          currentSnapVersion: snapVersionRes.response.currentVersion,
+          latestSnapVersion: snapVersionRes.response.latestVersion,
+        });
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        handleMissingProviderError(error);
+      if (error instanceof SnapError) {
+        handleSnapErrorTemplate(error);
+      }
+    }
+  }, []);
+
+  const handleUpdateSnapVersion = async () => {
+    if (snapMetadata) {
+      try {
+        await handleSnapVersion();
+        await connectSnap(snapMetadata.latestSnapVersion, provider);
+        setSnapMetadata({
+          ...snapMetadata,
+          currentSnapVersion: snapMetadata.latestSnapVersion,
+        });
+      } catch (error) {
+        if (error instanceof SnapError) {
+          if (error.code === 4001) {
+            toast(<ErrorToast msg={CONNECTION_REJECTED_UPDATE_SNAP_TOAST_MSG} />);
+          } else {
+            handleSnapErrorTemplate(error);
+          }
+        }
       }
     }
   };
 
   const handleReset = useCallback(async () => {
-    setQr(null);
-    setPairingStatus('Unpaired');
-    setSeconds(0);
-    setCurrentStep(0);
-    setAccount(null);
+    setAppState({
+      status: AppStatus.Unpaired,
+    });
     try {
       if (await isConnected(provider)) {
         await unPair(provider);
       }
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        handleMissingProviderError(error);
+      if (error instanceof SnapError) {
+        handleSnapErrorTemplate(error);
       }
     }
   }, []);
@@ -313,46 +651,44 @@ const App = () => {
   const handleSnapState = useCallback(async () => {
     try {
       if (await isConnected(provider)) {
+        await handleSnapVersion();
         const isPairedRes = await isPaired(provider);
         if (isPairedRes.response?.isPaired) {
           const accounts = await getKeyringClient(provider).listAccounts();
           if (accounts.length === 0) {
             if (isPairedRes.response.isAccountExist) {
-              await handleReset();
+              setAppState({ status: AppStatus.AccountCreationDenied });
             } else {
-              setCurrentStep(1);
-              setPairingStatus('AccountCreationDenied');
+              handleReset();
             }
           } else {
-            setAccount(accounts[0]);
-            setCurrentStep(3);
+            // To keep restoration screen while reloading the page
+            const mismatchRepairingState = localStorage.getItem('MismatchRepairing');
+            if (mismatchRepairingState) {
+              const { snapAccountAddress, phoneAccountAddress } =
+                JSON.parse(mismatchRepairingState);
+              setAppState({
+                account: accounts[0],
+                phoneAccountAddress,
+                snapAccountAddress,
+                status: AppStatus.MismatchRepairing,
+              });
+            } else {
+              setAppState({
+                status: AppStatus.AccountCreated,
+                account: accounts[0],
+              });
+            }
           }
-        } else {
-          setCurrentStep(0);
         }
       }
       setLoading(false);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        handleMissingProviderError(error);
+    } catch (error) {
+      if (error instanceof SnapError) {
+        handleSnapErrorTemplate(error);
       }
     }
-  }, [handleReset]);
-
-  useEffect(() => {
-    if (window.innerWidth < 640) {
-      setIsMobileWidthSize(true);
-    }
-
-    const handleLostInternetConnection = () => {
-      toast(<ErrorToast msg={LOST_INTERNET_TOAST_MSG} />);
-    };
-
-    window.addEventListener('offline', handleLostInternetConnection);
-    return () => {
-      window.removeEventListener('offline', handleLostInternetConnection);
-    };
-  }, []);
+  }, [handleReset, handleSnapVersion]);
 
   useEffect(() => {
     const onAnnouncement = (event: any) => {
@@ -365,7 +701,6 @@ const App = () => {
         provider = providerDetail.provider;
         setTimeout(() => {
           setOpenInstallDialog(false);
-          handleSnapVersion();
           handleSnapState();
         }, 1000);
       } else {
@@ -374,6 +709,7 @@ const App = () => {
     };
     window.addEventListener('eip6963:announceProvider', onAnnouncement);
     window.dispatchEvent(new Event('eip6963:requestProvider'));
+
     setTimeout(() => {
       if (!provider) {
         setOpenInstallDialog(true);
@@ -383,143 +719,164 @@ const App = () => {
       }
     }, 300);
 
-    return () => window.removeEventListener('eip6963:announceProvider', onAnnouncement);
-  }, []);
+    return () => {
+      window.removeEventListener('eip6963:announceProvider', onAnnouncement);
+    };
+  }, [handleSnapState, handleSnapVersion]);
 
   useEffect(() => {
-    if (pairingStatus !== 'Pairing' && pairingStatus !== 'Unpaired') {
-      setSeconds(0);
-      return;
-    }
-    if (seconds === 0) setPairingStatus('Unpaired');
-
-    if (!seconds) {
-      setQr(null);
-      return;
-    }
-    if (seconds > 0) {
-      const intervalId = setInterval(() => {
-        setSeconds(seconds - 1);
-      }, 1000);
-
-      return () => clearInterval(intervalId);
-    }
-  }, [seconds, pairingStatus]);
-
-  useEffect(() => {
-    (async () => {
-      if (currentStep > 1) {
-        try {
-          const isNotPaired = !(await isPaired(provider)).response?.isPaired;
-          if (isNotPaired) {
-            await handleReset();
-          }
-          setOpenMmConnectDialog(false);
-        } catch (error: unknown) {
-          if (error instanceof Error) {
-            handleMissingProviderError(error);
-          }
-        }
+    if (appState.status === AppStatus.Pairing || appState.status === AppStatus.RePairing) {
+      if (appState.seconds > 0) {
+        const intervalId = setInterval(() => {
+          if (appState.status === AppStatus.Pairing || appState.status === AppStatus.RePairing)
+            setAppState({
+              ...appState,
+              seconds: appState.seconds - 1,
+            });
+        }, 1000);
+        return () => clearInterval(intervalId);
       }
-    })();
-  }, [currentStep, handleReset]);
+    }
+  }, [appState]);
 
-  if (loading)
-    return (
-      <div className="app-container" style={{ justifyContent: 'center' }}>
-        <Spinner />
-      </div>
-    );
-  return (
+  return loading ? (
+    <div className="app-container" style={{ justifyContent: 'center' }}>
+      <Spinner />
+    </div>
+  ) : (
     <div className="app-container">
-      {/* Navigator */}
-      <nav className="w-full z-20 top-0 start-0 border-b border-gray-700 bg-black mb-6">
-        <div className="max-w-screen-xl flex flex-wrap items-center justify-between h-[8.88vh]">
-          <LogoSvg className="h-auto ml-4 w-[25vw] sm:w-[15vw] xl:w-[7vw] sm:ml-20 xl:ml-40" />
-        </div>
-      </nav>
-      <img className="bg-pattern-2nd-layer" src="/v2/pattern.png" alt=""></img>
-
+      <NavBar />
       {/* Body */}
-      {currentStep === 3 && currentSnapVersion && latestSnapVersion && account ? (
+
+      {(appState.status === AppStatus.AccountCreated || appState.status === AppStatus.RePaired) &&
+      appState.account &&
+      snapMetadata !== undefined &&
+      provider !== undefined ? (
         <div className="flex flex-col flex-1 bg-pattern">
-          {provider && (
-            <Homescreen
-              provider={provider}
-              onMissingProvider={(error: unknown) => {
-                if (error instanceof Error) {
-                  handleMissingProviderError(error);
-                }
-              }}
-              onLogout={handleReset}
-              onSnapUpdate={handleSnapVersion}
-              currentSnapVersion={currentSnapVersion}
-              latestSnapVersion={latestSnapVersion}
-              account={account!}
-            />
-          )}
+          <Homescreen
+            isRepaired={appState.status === AppStatus.RePaired}
+            onContinueClick={handleReset}
+            onSnapUpdate={handleUpdateSnapVersion}
+            onRePairing={handleRePairing}
+            onDeleteAccount={handleDeleteAccount}
+            currentSnapVersion={snapMetadata.currentSnapVersion}
+            latestSnapVersion={snapMetadata.latestSnapVersion}
+            account={appState.account}
+          />
           <div className="text-white-primary full-w flex mt-auto justify-end mx-auto lg:mr-14 mb-6 label-regular z-50">
-            Snap version: {currentSnapVersion}
+            Snap version: {snapMetadata.currentSnapVersion}
           </div>
         </div>
       ) : (
         <div className="w-full relative bg-pattern" style={{ zIndex: 1 }}>
           <img className="bg-pattern-2nd-layer -z-10" src="/v2/pattern.png" alt=""></img>
-          {currentStep === 0 && (
-            <Installation
-              onConnectMmClick={async () => {
-                setOpenMmConnectDialog(true);
-                await handleInstallSnap();
-              }}
-            />
-          )}
+          {(() => {
+            switch (appState.status) {
+              case AppStatus.Unpaired:
+                return (
+                  <Installation
+                    onConnectMmClick={async () => {
+                      setOpenMmConnectDialog(true);
+                      await handleConnectMmClick();
+                    }}
+                  />
+                );
 
-          {currentStep === 1 && (
-            <>
-              {pairingStatus === 'KeygenDone' || pairingStatus === 'AccountCreationInProgress' ? (
-                <AccountCreation
-                  step={{
-                    progressStep: currentStep + 1,
-                    onGoingBackClick: handleReset,
-                  }}
-                  disableBackward={
-                    pairingStatus === 'KeygenDone' || pairingStatus === 'AccountCreationInProgress'
-                  }
-                />
-              ) : pairingStatus === 'AccountCreationDenied' ? (
-                <AccountCreationRetry
-                  onTryAgainClick={handleCreateAccount}
-                  step={{
-                    progressStep: currentStep,
-                    onGoingBackClick: handleReset,
-                  }}
-                />
-              ) : (
-                <Pairing
-                  qr={qr}
-                  seconds={seconds}
-                  onTryAgainClick={handleInitAndRunPairing}
-                  loading={pairingStatus === 'Paired'}
-                  step={{
-                    progressStep: currentStep,
-                    onGoingBackClick: handleReset,
-                  }}
-                />
-              )}
-            </>
-          )}
+              case AppStatus.AccountCreationInProgress:
+              case AppStatus.AccountRestorationInProgress:
+                return (
+                  <AccountCreation
+                    isRestoration={appState.status === AppStatus.AccountRestorationInProgress}
+                    step={{
+                      progressBarValue: 50,
+                      onGoingBackClick: handleReset,
+                    }}
+                    disableBackward={true}
+                  />
+                );
+              case AppStatus.AccountCreationDenied:
+              case AppStatus.AccountRestorationDenied:
+                return (
+                  <ErrorState
+                    onRetryClick={async () => {
+                      await handleCreateAccount();
+                    }}
+                    step={{
+                      progressBarValue: 25,
+                      onGoingBackClick: handleReset,
+                    }}
+                  />
+                );
+              case AppStatus.Pairing:
+              case AppStatus.Paired:
+              case AppStatus.RePairing:
+                return (
+                  <Pairing
+                    isRepairing={appState.status === AppStatus.RePairing}
+                    qr={appState.qr}
+                    seconds={appState.seconds}
+                    currentAddress={
+                      appState.status === AppStatus.RePairing ? appState.account?.address : ''
+                    }
+                    onTryAgainClick={async () => {
+                      if (appState.status === AppStatus.RePairing) {
+                        await handleRePairing();
+                      } else {
+                        await handleInitPairing().then((isInitPairingDone) => {
+                          if (isInitPairingDone) {
+                            handleRunPairing().then((isPairingDone) => {
+                              if (isPairingDone) {
+                                handleCreateAccount();
+                              }
+                            });
+                          }
+                        });
+                      }
+                    }}
+                    loading={appState.status === AppStatus.Paired}
+                    step={{
+                      progressBarValue: 25,
+                      onGoingBackClick: async () => {
+                        if (appState.status === AppStatus.RePairing) {
+                          setAppState({
+                            status: AppStatus.AccountCreated,
+                            account: appState.account,
+                          });
+                        } else {
+                          await handleReset();
+                        }
+                      },
+                    }}
+                  />
+                );
 
-          {pairingStatus === 'AccountCreated' && currentStep === 2 && (
-            <BackupRecovery
-              onDone={() => {
-                setCurrentStep(3);
-              }}
-              step={{
-                progressStep: currentStep + 1,
-              }}
-              deviceOS={deviceOS}
-            />
-          )}
+              case AppStatus.BackupInstruction:
+                return (
+                  <BackupRecovery
+                    onDone={handleOnBackupInstructionDone}
+                    step={{
+                      progressBarValue: 75,
+                    }}
+                    deviceOS={deviceOS}
+                  />
+                );
+              case AppStatus.MismatchRepairing:
+                return (
+                  <MismatchRepairing
+                    snapAccountAddress={appState.snapAccountAddress}
+                    phoneAccountAddress={appState.phoneAccountAddress}
+                    onCancleRestoration={async () => {
+                      localStorage.removeItem('MismatchRepairing');
+                      await handleRePairing();
+                    }}
+                    onCreateAccount={handleCreateAccount}
+                    onDeleteAccount={handleDeleteAccount}
+                  />
+                );
+              default:
+                return null;
+            }
+          })()}
         </div>
       )}
       {/* Dialogs */}
@@ -541,7 +898,7 @@ const App = () => {
             <Button
               className="bg-indigo-primary hover:bg-indigo-hover active:bg-indigo-active w-full self-center mt-8 text-white-primary btn-lg"
               onClick={() => {
-                handleOpenMetaMaskCIExtension();
+                window.open('https://metamask.io/download/', '_blank');
                 setOpenInstallDialog(false);
               }}>
               Get MetaMask

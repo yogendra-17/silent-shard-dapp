@@ -2,42 +2,48 @@ import './index.css';
 import 'animate.css';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 
-// import { MetaMaskProvider } from '@metamask/sdk-react'; // TODO: Use metamask/sdk for v3.1
-import mixpanel from 'mixpanel-browser';
-import React from 'react';
+import React, { ErrorInfo } from 'react';
 import ReactDOM from 'react-dom/client';
+import { ErrorBoundary } from 'react-error-boundary';
 
+import { AnalyticEvent, EventName, trackAnalyticEvent } from './api/analytic';
 import App from './App';
+import NavBar from './components/NavBar';
+import ErrorState from './screens/ErrorState';
 
-const MIX_PANEL_TOKEN = process.env.REACT_APP_MIX_PANEL_TOKEN!;
+const logError = (error: Error, info: ErrorInfo) => {
+  trackAnalyticEvent(
+    EventName.unexpected_error,
+    new AnalyticEvent() //
+      .setWallet()
+      .setError((error as Error).message)
+      .setErrorStack(info.componentStack ?? '')
+  );
+};
+
+function ErrorFallback() {
+  const handleReload = async () => {
+    location.reload();
+  };
+  return (
+    <div className="app-container">
+      <NavBar />
+      <ErrorState
+        onRetryClick={handleReload}
+        step={{ progressBarValue: 0, onGoingBackClick: handleReload }}
+      />
+    </div>
+  );
+}
+
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 root.render(
   <React.StrictMode>
-    {/* <MetaMaskProvider
-      debug={false}
-      sdkOptions={{
-        enableAnalytics: false,
-        logging: {
-          developerMode: false,
-        },
-        dappMetadata: {
-          name: 'Silent Shard dApp',
-          url: window.location.href,
-        },
-        checkInstallationImmediately: true,
-      }}> */}
-    <App />
-    {/* </MetaMaskProvider> */}
+    <ErrorBoundary FallbackComponent={ErrorFallback} onError={logError}>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>
 );
-
-mixpanel.init(MIX_PANEL_TOKEN, {
-  autotrack: true,
-  track_pageview: true,
-  loaded: function () {
-    mixpanel.track('Mixpanel Loaded on dApp');
-  },
-});
 
 // If you want to start measuring performance in your app, pass a function
 // to log results (for example: reportWebVitals(console.log))

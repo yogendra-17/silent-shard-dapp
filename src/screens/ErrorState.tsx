@@ -3,12 +3,12 @@ import debounce from 'debounce';
 import Layout, { StepProps } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 
-interface AccountCreationRetryProps {
-  onTryAgainClick: () => Promise<void>;
+interface ErrorStateProps {
+  onRetryClick: () => Promise<void>;
   step: StepProps;
 }
 
-const AccountCreationRetry: React.FC<AccountCreationRetryProps> = ({ onTryAgainClick, step }) => {
+const ErrorState: React.FC<ErrorStateProps> = ({ onRetryClick, step }) => {
   return (
     <div className="desc animate__animated animate__slideInUp animate__faster">
       <Layout step={step} className="h-max">
@@ -75,10 +75,12 @@ const AccountCreationRetry: React.FC<AccountCreationRetryProps> = ({ onTryAgainC
               fill="white"
             />
           </svg>
-          <div className="text-white-primary my-8 text-center h2-bold">Something went wrong!</div>
+          <div className="text-white-primary my-8 text-center h2-bold">
+            Uh-oh! Something went wrong. Please try again
+          </div>
           <Button
             className="max-sm:p-8 w-3/4 bg-indigo-primary hover:bg-indigo-hover active:bg-indigo-active self-center text-white-primary btn-lg"
-            onClick={debounce(onTryAgainClick, 1000)}>
+            onClick={debounce(onRetryClick, 1000)}>
             Try again
           </Button>
         </div>
@@ -87,4 +89,4 @@ const AccountCreationRetry: React.FC<AccountCreationRetryProps> = ({ onTryAgainC
   );
 };
 
-export default AccountCreationRetry;
+export default ErrorState;

@@ -1,17 +1,32 @@
 stages: 
-  - build-artefacts
+  - build-artifact
   - deploy-staging
   - deploy-prod
 
-build-artefacts:
-  stage: build-artefacts
+build-artifact:
+  stage: build-artifact
   only:
-    - staging
     - main
   tags:
     - dapp-builder
   script:
     - cat $ENV > .env
+    - npm i
+    - REACT_APP_MIX_PANEL_TOKEN=$REACT_APP_MIX_PANEL_TOKEN CI=false npm run build
+    - 7z a ./dapp-v2.7z ../dapp-v2
+  artifacts:
+    paths:
+      - ./dapp-v2.7z
+    expire_in: 1 week
+
+build-artifact-stage:
+  stage: build-artifact
+  only:
+    - staging
+  tags:
+    - dapp-builder
+  script:
+    - cat $ENV_STAGING > .env
     - npm i
     - REACT_APP_MIX_PANEL_TOKEN=$REACT_APP_MIX_PANEL_TOKEN CI=false npm run build
     - 7z a ./dapp-v2.7z ../dapp-v2
@@ -27,7 +42,7 @@ deploy-staging:
   tags:
     - dapp-v2-deployer-stage
   dependencies:
-    - build-artefacts
+    - build-artifact-stage
   script: 
     - mv dapp-v2.7z /opt/
     - cd /opt/

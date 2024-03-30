@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 
+import { AnalyticEvent, EventName, EventScreen, trackAnalyticEvent } from '@/api/analytic';
+import Footer from '@/components/Footer';
 import Layout from '@/components/Layout';
 import TermAndPolicy from '@/components/TermAndPolicy';
 import { Button } from '@/components/ui/button';
@@ -8,8 +10,21 @@ import { Button } from '@/components/ui/button';
 interface InstallationProps {
   onConnectMmClick: () => Promise<void>;
 }
+let isNewSession = true;
 const Installation: React.FC<InstallationProps> = ({ onConnectMmClick }) => {
   const [showSpinner, setShowSpinner] = useState(false);
+  if (isNewSession) {
+    trackAnalyticEvent(
+      EventName.new_page_visit,
+      new AnalyticEvent().setScreen(EventScreen.connect_metamask)
+    );
+    isNewSession = false;
+    const toId = setTimeout(() => {
+      isNewSession = true;
+      clearTimeout(toId);
+    }, 30 * 60 * 1000);
+  }
+
   return (
     <div>
       <div className={`flex flex-col justify-center items-center`}>
@@ -39,7 +54,7 @@ const Installation: React.FC<InstallationProps> = ({ onConnectMmClick }) => {
           <p className="b2-regular text-[#B6BAC3] mt-3">
             Link your MetaMask wallet with Silent Shard Snap to begin.
           </p>
-          <div className="b2-regular p-2 flex items-start rounded-lg border bg-[rgba(96,154,250,0.1)] border-[#1e55af] text-white-primary my-6">
+          <div className="b2-regular p-2 flex items-start rounded-[8px] border bg-[rgba(96,154,250,0.1)] border-[#1e55af] text-white-primary my-6">
             <svg
               className="mr-1"
               xmlns="http://www.w3.org/2000/svg"
@@ -77,25 +92,7 @@ const Installation: React.FC<InstallationProps> = ({ onConnectMmClick }) => {
           </div>
         </Layout>
         <div className="mt-6 text-[#B6BAC3] text-center label-regular w-[90vw] lg:w-max">
-          <div>
-            This Snap is powered by{' '}
-            <a
-              className="underline text-indigo-custom label-bold"
-              href="https://www.silencelaboratories.com/silent-shard"
-              target="_blank"
-              rel="noreferrer">
-              Silent Shard Two Party SDK
-            </a>{' '}
-            from{' '}
-            <a
-              className="underline text-indigo-custom label-bold"
-              href="https://www.silencelaboratories.com"
-              target="_blank"
-              rel="noreferrer">
-              {' '}
-              Silence Laboratories.
-            </a>
-          </div>
+          <Footer />
           <TermAndPolicy />
         </div>
       </div>
