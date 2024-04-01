@@ -1,3 +1,6 @@
+// Copyright (c) Silence Laboratories Pte. Ltd.
+// This software is licensed under the Silence Laboratories License Agreement.
+
 import mixpanel from 'mixpanel-browser';
 
 const MIX_PANEL_TOKEN = process.env.REACT_APP_MIX_PANEL_TOKEN!;
