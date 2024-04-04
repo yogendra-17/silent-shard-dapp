@@ -106,7 +106,7 @@ const App = () => {
   let mmAddress = '';
   const handleMetaMaskConnect = async () => {
     try {
-      const addresses: any = await provider?.request({ method: 'eth_requestAccounts' }); // Ask MetaMask to unlock the wallet if the user locked it
+      const addresses = (await provider?.request({ method: 'eth_requestAccounts' })) as string[]; // Ask MetaMask to unlock the wallet if the user locked it
       mmAddress = addresses?.[0];
       trackAnalyticEvent(
         EventName.connect_metamask,
@@ -694,7 +694,7 @@ const App = () => {
   }, [handleReset, handleSnapVersion]);
 
   useEffect(() => {
-    const onAnnouncement = (event: any) => {
+    const onAnnouncement = (event: EIP6963AnnounceProviderEvent) => {
       const providerDetail = event.detail;
       if (
         providerDetail.info.rdns === 'io.metamask' ||
