@@ -30,16 +30,23 @@ jobs:
           name: dapp-v2
           path: ./dapp-v2.7z
           
-#   deploy-staging:
-#     runs-on: ubuntu-latest
-#     needs: build-and-deploy
-#     steps:
-#       - name: Download artifact
-#         uses: actions/download-artifact@v2
-#         with:
-#           name: dapp-v2
-#           path: ./dapp-v2.7z
-
+  deploy-staging:
+    runs-on: dapp-v2-stagin
+    needs: build-and-deploy
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: dapp-v2
+          path: ./dapp-v2.7z
+      - name: Build artifact
+        run: |
+          mv dapp-v2.7z /opt/
+          cd /opt/
+          rm -r dapp-v2
+          7z x dapp-v2.7z
+        #   sudo systemctl restart dapp-v2-staging.service
+  
 #       # Add steps to deploy to staging environment
 
 #   deploy-prod:
