@@ -1,0 +1,53 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - actions
+
+jobs:
+  build-and-deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+
+      - name: Install dependencies
+        run: |
+          npm install
+
+      - name: Build artifact
+        run: |
+          cat $ENV > .env
+          REACT_APP_MIX_PANEL_TOKEN=$REACT_APP_MIX_PANEL_TOKEN CI=false npm run build
+          7z a ./dapp-v2.7z ../dapp-v2
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: dapp-v2
+          path: ./dapp-v2.7z
+          
+#   deploy-staging:
+#     runs-on: ubuntu-latest
+#     needs: build-and-deploy
+#     steps:
+#       - name: Download artifact
+#         uses: actions/download-artifact@v2
+#         with:
+#           name: dapp-v2
+#           path: ./dapp-v2.7z
+
+#       # Add steps to deploy to staging environment
+
+#   deploy-prod:
+#     runs-on: ubuntu-latest
+#     needs: build-and-deploy
+#     steps:
+#       - name: Download artifact
+#         uses: actions/download-artifact@v2
+#         with:
+#           name: dapp-v2
+#           path: ./dapp-v2.7z
