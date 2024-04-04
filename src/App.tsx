@@ -54,7 +54,7 @@ import Homescreen from './screens/Homescreen';
 import Installation from './screens/Installation';
 import MismatchRepairing from './screens/MismatchRepairing';
 import Pairing from './screens/Pairing';
-import { AppState, AppStatus, Callback, DeviceOS, ProviderRpcError, SnapMetaData } from './types';
+import { AppState, AppStatus, DeviceOS, ProviderRpcError, SnapMetaData } from './types';
 
 let provider: EIP1193Provider;
 const App = () => {
@@ -67,7 +67,8 @@ const App = () => {
   const [appState, setAppState] = useState<AppState>({ status: AppStatus.Unpaired });
   const [snapMetadata, setSnapMetadata] = useState<SnapMetaData | undefined>();
   const [deviceOS, setDeviceOS] = useState<DeviceOS>(DeviceOS.android);
-  const handleSnapErrorTemplate = (snapErr: SnapError, errorHandler?: Callback) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleSnapErrorTemplate = (snapErr: SnapError, errorHandler?: any) => {
     const { code, message } = snapErr;
     if (code === 4100) {
       setAppState({ status: AppStatus.Unpaired });
