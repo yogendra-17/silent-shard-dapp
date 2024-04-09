@@ -98,6 +98,7 @@ const Homescreen: React.FC<HomescreenProps> = ({
       compareVersions(VERSION_OF_NEW_FEATURE, latestSnapVersion) <= 0 &&
       compareVersions(VERSION_OF_NEW_FEATURE, currentSnapVersion) <= 0;
     setIsNewFeatureReady(isNewFeatureReady);
+    console.log('current version:', currentSnapVersion);
   }, [latestSnapVersion, currentSnapVersion]);
 
   return (
