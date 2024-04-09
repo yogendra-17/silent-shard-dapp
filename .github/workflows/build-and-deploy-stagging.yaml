@@ -22,7 +22,7 @@ jobs:
 
       - name: Build artifact
         run: |
-          echo $ENV_STAGING > .env
+          echo "${{ secrets.ENV_STAGING }}" | base64 -d > .env
           REACT_APP_MIX_PANEL_TOKEN=$REACT_APP_MIX_PANEL_TOKEN CI=false npm run build
           7z a ./dapp-v2.7z ../silent-shard-dapp
 
