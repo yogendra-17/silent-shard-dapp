@@ -43,6 +43,6 @@ jobs:
         run: |
           mv ./dapp-v2/dapp-v2.7z /opt/
           cd /opt/
-          [ -d "dapp-v2" ] && rm -r "dapp-v2" 
+          [ -d "silent-shard-dapp" ] && rm -r "silent-shard-dapp" 
           7z x dapp-v2.7z
           sudo systemctl restart dapp-v2-staging.service
