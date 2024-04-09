@@ -6,7 +6,7 @@ on:
       - actions
 
 jobs:
-  build-and-deploy:
+  build-and-deploy-staging:
     runs-on: self-hosted
 
     steps:
@@ -20,7 +20,7 @@ jobs:
 
       - name: Build artifact
         run: |
-          cat $ENV > .env
+          cat $ENV_STAGING > .env
           REACT_APP_MIX_PANEL_TOKEN=$REACT_APP_MIX_PANEL_TOKEN CI=false npm run build
           7z a ./dapp-v2.7z ../silent-shard-dapp
 
@@ -32,7 +32,7 @@ jobs:
           
   deploy-staging:
     runs-on: dapp-v2-stagin
-    needs: build-and-deploy
+    needs: build-and-deploy-staging
     steps:
       - name: Download artifact
         uses: actions/download-artifact@v2
@@ -45,16 +45,4 @@ jobs:
           cd /opt/
           rm -r dapp-v2
           7z x dapp-v2.7z
-        #   sudo systemctl restart dapp-v2-staging.service
-  
-#       # Add steps to deploy to staging environment
-
-#   deploy-prod:
-#     runs-on: ubuntu-latest
-#     needs: build-and-deploy
-#     steps:
-#       - name: Download artifact
-#         uses: actions/download-artifact@v2
-#         with:
-#           name: dapp-v2
-#           path: ./dapp-v2.7z
+          sudo systemctl restart dapp-v2-staging.service
