@@ -8,7 +8,9 @@ on:
 jobs:
   build-and-deploy-staging:
     runs-on: self-hosted
-
+    env:
+      ENV_STAGING: ${{ secrets.ENV_STAGING }}
+      REACT_APP_MIX_PANEL_TOKEN: ${{ secrets.REACT_APP_MIX_PANEL_TOKEN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
