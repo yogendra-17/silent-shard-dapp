@@ -1,0 +1,148 @@
+.h2-bold {
+    /* Headline 2/Bold */
+    font-family: Epilogue;
+    font-size: 24px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: 38.4px; /* 160% */
+  }
+  
+  .h2-md {
+    /* Headline 2/Medium */
+    font-family: Epilogue;
+    font-size: 24px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 38.4px; /* 160% */
+  }
+  
+  .h2-regular {
+    /* Headline 2/Regular */
+    font-family: Epilogue;
+    font-size: 24px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 38.4px; /* 160% */
+  }
+  
+  .b1-bold {
+    /* Body 1/Bold */
+    font-family: Epilogue;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: 25.6px; /* 160% */
+  }
+  
+  .b1-md {
+    /* Body 1/Medium */
+    font-family: Epilogue;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 25.6px; /* 160% */
+  }
+  
+  .b1-regular {
+    /* Body 1/Regular */
+    font-family: Epilogue;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 25.6px; /* 160% */
+  }
+  
+  .b2-bold {
+    /* Body 2/Bold */
+    font-family: Epilogue;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: 22.4px; /* 160% */
+  }
+  
+  .b2-md {
+    /* Body 2/Medium */
+    font-family: Epilogue;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 22.4px; /* 160% */
+  }
+  
+  .b2-regular {
+    /* Body 2/Regular */
+    font-family: Epilogue;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 22.4px; /* 160% */
+  }
+  
+  .label-bold {
+    /* Label/Bold */
+    font-family: Epilogue;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: 19.2px; /* 160% */
+  }
+  
+  .label-md {
+    /* Label/Medium */
+    font-family: Epilogue;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 19.2px; /* 160% */
+  }
+  
+  .label-regular {
+    /* Label/Regular */
+    font-family: Epilogue;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 19.2px; /* 160% */
+  }
+  
+  .btn-lg {
+    /* Button/Large */
+    font-family: Epilogue;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 25.6px; /* 160% */
+    letter-spacing: 0.1px;
+  }
+  
+  .btn-sm {
+    /* Button/Small */
+    font-family: Epilogue;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 22.4px; /* 160% */
+    letter-spacing: 0.1px;
+  }
+  /* styles.module.css */
+
+/* Style for Headline 1/Bold */
+.headline1 {
+  font-family: Epilogue;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 38px;
+  letter-spacing: 0px;
+  text-align: center;
+}
+
+/* Style for Headline 2/Bold */
+.headline2 {
+  font-family: Epilogue;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 38px;
+  letter-spacing: 0px;
+  text-align: center;
+}
