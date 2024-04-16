@@ -3,32 +3,11 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/button";
 import { useRouter } from "next/navigation";
-import frontAnimation from "../../../../public/frontAnimation.json"
+import frontAnimation from "../../../../public/frontAnimation.json";
 import Lottie from "lottie-react";
 
 function Page() {
     const router = useRouter();
-
-    const [seconds, setSeconds] = useState<number>(30);
-
-    const step = 1;
-
-    const MAX_SECONDS = 30;
-    
-
-    useEffect(() => {
-        if (seconds > 0) {
-            const interval = setInterval(() => {
-                setSeconds((prev) => prev - 1);
-            }, 1000);
-            return () => clearInterval(interval);
-        }
-    }, [seconds]);
-
-
-
-    //   const isQrExpired = false;
-
     const nextPageClick = () => {
         router.replace("/pair");
     };
@@ -76,10 +55,7 @@ function Page() {
             </div>
             <br></br>
             <div className="flex items-center justify-center">
-                <Lottie
-                    className="w-[600px]"
-                    animationData={frontAnimation}
-                    />
+                <Lottie className="w-[600px]" animationData={frontAnimation} />
             </div>
 
             <Button
