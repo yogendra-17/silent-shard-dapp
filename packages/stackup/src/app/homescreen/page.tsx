@@ -23,7 +23,6 @@ const Homescreen: React.FC<HomescreenProps> = ({}) => {
     const [switchChain, setSwitchChain] = useState<"none" | "popup" | "button">(
         "none"
     );
-    const [balance_eoa, setBalance_eoa] = useState(0);
     const router = useRouter();
 
     useEffect(() => {
