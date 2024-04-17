@@ -2,15 +2,17 @@
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 // import { toast,  } from 'react-toastify';
+import { Client, Presets } from 'userop';
 
 // import { ErrorToast } from '@/components/Toast/error';
 import { Button } from "@/components/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/popover";
 import { Separator } from "@/components/separator";
 import { TextInput } from "@/components/textInput";
-
+ 
 import * as store from "@/utils/store";
 import { useRouter } from "next/navigation";
+import { SilentWallet } from "@/silentWallet";
 
 interface HomescreenProps {}
 
@@ -35,24 +37,24 @@ const Homescreen: React.FC<HomescreenProps> = ({}) => {
         setEoa(store.getEoa());
     }, []);
 
-    const POLYGON_MUMBAI_CHAIN_ID = BigInt(80001);
+    const SEPOLIA_CHAIN_ID = BigInt(1115511);
     const POLYGON_MUMBAI = {
-        chainId: "0x13881", // 80001 in hex
-        chainName: "Matic(Polygon) Mumbai Testnet",
+        chainId: "0xAA36A7", // 80001 in hex
+        chainName: "Sepolia Test Netwok",
         nativeCurrency: {
-            name: "Matic Mumbai",
-            symbol: "MATIC",
+            name: "Sepolia",
+            symbol: "SepoloaETH",
             decimals: 18,
         },
-        rpcUrls: ["https://rpc-mumbai.maticvigil.com/"],
-        blockExplorerUrls: ["https://mumbai.polygonscan.com/"],
+        rpcUrls: ["https://eth-sepolia.g.alchemy.com/v2/"],
+        blockExplorerUrls: ["https://sepolia.etherscan.io/"],
     };
 
     useEffect(() => {
         if (walletAccount.address == "...") return;
         if (eoa.address == "...") return;
         (async () => {
-            if (!(await isChainPolygon())) {
+            if (!(await isChainSepolia())) {
                 setSwitchChain("popup");
                 const didUserSwitch = await switchToPolygon();
                 if (!didUserSwitch) {
@@ -62,7 +64,7 @@ const Homescreen: React.FC<HomescreenProps> = ({}) => {
                 setSwitchChain("none");
             }
 
-            setNetwork("Polygon Mumbai");
+            setNetwork("Sepolia Test Network");
             let { balance_wallet, balance_eoa } = await updateBalance();
             setWalletAccount({
                 ...walletAccount,
@@ -79,12 +81,12 @@ const Homescreen: React.FC<HomescreenProps> = ({}) => {
         didUserSwitch ? setSwitchChain("none") : setSwitchChain("button");
     }
 
-    async function isChainPolygon() {
+    async function isChainSepolia() {
         // @ts-ignore
         const provider = new ethers.BrowserProvider(window.ethereum);
 
         const currentChainId = (await provider.getNetwork()).chainId;
-        if (currentChainId == POLYGON_MUMBAI_CHAIN_ID) {
+        if (currentChainId == SEPOLIA_CHAIN_ID) {
             console.log(currentChainId, "chianid");
             return true;
         }
@@ -99,10 +101,10 @@ const Homescreen: React.FC<HomescreenProps> = ({}) => {
             // @ts-ignore
             await window.ethereum.request({
                 method: "wallet_addEthereumChain",
-                params: [POLYGON_MUMBAI],
+                params: [SEPOLIA_CHAIN_ID],
             });
-            if (await isChainPolygon()) {
-                setNetwork("Polygon Mumbai");
+            if (await isChainSepolia()) {
+                setNetwork("Sepolia Test Network");
                 return true;
             } else {
                 return false;
@@ -183,33 +185,60 @@ const Homescreen: React.FC<HomescreenProps> = ({}) => {
 
         (async () => {
             // clear banners
-            setShowTransactionSignedBanner(false);
-
-            // send sign request to server
-            setShowTransactionInitiatedBanner(true);
+          
 
             const requestData = {
                 to: recipientAddress,
                 amount: amount,
             };
-            const response = await fetch(
-                "http://localhost:3001/api/simpleAccount/transfer",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify(requestData),
-                }
+            const storageKey = 'SilentShare1';
+            const storageDataString = localStorage.getItem(storageKey);
+            if (!storageDataString) {
+              console.error("No storage data found");
+              return;
+            }
+            const storageData = JSON.parse(storageDataString);
+            const newPairingState = storageData.newPairingState;
+            const distributedKey = newPairingState.distributedKey;
+          
+            // Assuming these fields exist in your retrieved 
+             // Adjust field access as necessary
+            const publicKey = distributedKey.publicKey;
+            const address = ethers.utils.computeAddress(`0x04${publicKey}`);
+            const p1KeyShare = distributedKey.keyShareData;
+            const keygenResult = distributedKey; // You might want to structure this differently depending on needs
+            console.log("yogiKeygen",keygenResult)
+            console.log("yoogiAddress",address)
+            console.log("yoogiPublicKey",publicKey)
+            console.log("yoogiP1KeyShare",p1KeyShare)
+            console.log("yoogiKeygenResult",keygenResult)
+            // Initialize SilentWallet with retrieved configuration
+    
+            const simpleAccount = await Presets.Builder.SimpleAccount.init(
+              new SilentWallet(address, publicKey, p1KeyShare,{distributedKey}),
+            "https://api.stackup.sh/v1/node/32bbc56086c93278c34d5b3376a487e6b57147f052ec41688c1ad65bd984af7e") 
+            
+            const client = await Client.init("https://api.stackup.sh/v1/node/32bbc56086c93278c34d5b3376a487e6b57147f052ec41688c1ad65bd984af7e");
+
+            const target = ethers.utils.getAddress(requestData.to);
+            const value = ethers.utils.parseEther(requestData.amount);
+            const res = await client.sendUserOperation(
+              simpleAccount.execute(target, value, '0x'),
+              {
+                // Add necessary options as needed
+              
+              onBuild: (op) => console.log("Signed UserOperation:", op),
+              }
             );
+            console.log("yogiRes",res.userOpHash);
 
-            const resData = await response.json();
-            console.log(resData);
-            store.setTxHash(resData.transactionHash); // tx hash received from backend?
-            setShowTransactionInitiatedBanner(false);
+            const ev = await res.wait();
+            console.log("yogiEv",ev?.transactionHash ?? null);
+           
+            setShowTransactionSignedBanner(false);
 
-            // show sign successful banner
-            setShowTransactionSignedBanner(true);
+            // send sign request to server
+            setShowTransactionInitiatedBanner(true);
         })();
     }
 

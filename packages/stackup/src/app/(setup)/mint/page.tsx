@@ -4,11 +4,14 @@ import React, { useEffect, useState } from "react";
 import { Button } from "@/components/button";
 import { Progress } from "@/components/progress";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/popover";
-
+import { Client, Presets } from 'userop';
 import * as store from "@/utils/store";
 import { useRouter } from "next/navigation";
 import { json } from "stream/consumers";
-
+import { SilentWallet } from "@/silentWallet";
+import { ethers } from "ethers";
+import config from "../../../config1.json"
+import smartContractAddress from "@/scripts/simpleAccount/address";
 function Page() {
     const placeholderAccount = {address: "...", balance: 0}
     const [loading, setLoading] = useState<boolean>(false);
@@ -28,25 +31,51 @@ function Page() {
         (async () => {
             setLoading(true);
             // mint
-            // await new Promise((resolve) => setTimeout(resolve, 1000));
+    
 
-            const response = await fetch("http://localhost:3001/api/simpleAccount/address",{
-            method: "GET",
-            headers: {
-                "Content-Type": "application/json",
-            },
-        });
-
-        if (!response.ok) {
-            throw new Error("Network response was not ok");
+   
+        const storageKey = 'SilentShare1';
+        const storageDataString = localStorage.getItem(storageKey);
+        if (!storageDataString) {
+          console.error("No storage data found");
+          return;
         }
+      
+        // Parse the JSON string to an object
+        const storageData = JSON.parse(storageDataString);
+        const newPairingState = storageData.newPairingState;
+        const distributedKey = newPairingState.distributedKey;
+      
+        // Assuming these fields exist in your retrieved 
+         // Adjust field access as necessary
+        const publicKey = distributedKey.publicKey;
+        const address = ethers.utils.computeAddress(`0x04${publicKey}`);
+        const p1KeyShare = distributedKey.keyShareData;
+        const keygenResult = distributedKey; // You might want to structure this differently depending on needs
+        console.log("yogiKeygen",keygenResult)
+        console.log("yoogiAddress",address)
+        console.log("yoogiPublicKey",publicKey)
+        console.log("yoogiP1KeyShare",p1KeyShare)
+        console.log("yoogiKeygenResult",keygenResult)
+        // Initialize SilentWallet with retrieved configuration
 
-        const walletAccount = await response.json(); 
-        store.setWalletAccount({address: walletAccount.scaAddress});
+        const simpleAccount = await Presets.Builder.SimpleAccount.init(
+          new SilentWallet(address, publicKey, p1KeyShare,{distributedKey}),
+        "https://api.stackup.sh/v1/node/32bbc56086c93278c34d5b3376a487e6b57147f052ec41688c1ad65bd984af7e") 
+        
+        const response = simpleAccount.getSender();
+        console.log("responseYogi",response) 
+
+
+      store.setWalletAccount({address: response});
+      console.log("yogi",store.getWalletAccount())
+      console.log("responseYogi", response);
+   
+
         setLoading(false);
 
-            // redirect to homescreen
-            router.push("/homescreen");
+        // redirect to homescreen
+        router.replace("/homescreen");
         })();
     };
 

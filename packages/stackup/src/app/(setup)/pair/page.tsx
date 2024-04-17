@@ -72,7 +72,7 @@ function Page() {
             setLoading(false);
             // redirect to mint page
             // router.replace("/mint");
-            router.replace("/homescreen");
+            router.replace("/mint");
         })();
     }
     useEffect(() => {
