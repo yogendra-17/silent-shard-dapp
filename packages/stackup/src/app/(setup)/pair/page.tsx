@@ -25,33 +25,10 @@ function Page() {
         console.log("gen wallet called api---");
         store.clearLocalStorage();
 
-        // update pairing status
-        //new endpoint for the qr code
         (async () => {
-
-            // initPairing
-            // const response = await fetch("http://localhost:3001/api/qr", {
-            //     method: "GET",
-            //     headers: {
-            //         "Content-Type": "application/json",
-            //     },
-            // });
             const qrCode = await initPairing();
-            // const data = await response.json();
             setQr(qrCode);
             setSeconds(MAX_SECONDS);
-
-            // wait for qr to be scanned
-            // await new Promise((resolve) => setTimeout(resolve, 2000));
-            // second endpoint for getting the eoa address
-            // runPairing
-            
-            // const response2 = await fetch("http://localhost:3001/api/init", {
-            //     method: "GET",
-            //     headers: {
-            //         "Content-Type": "application/json",
-            //     },
-            // });
 
             const runPairingResp = await runPairing();
             console.log("runPairingResp", runPairingResp);
@@ -59,19 +36,21 @@ function Page() {
             const keygenRes = await runKeygen();
             console.log("keygenRes", keygenRes);
 
-            let eoa = { address: '0x' +
-					pubToAddress(
-						Buffer.from(keygenRes.distributedKey.publicKey, 'hex'),
-					).toString('hex') };
+            let eoa = {
+                address:
+                    "0x" +
+                    pubToAddress(
+                        Buffer.from(keygenRes.distributedKey.publicKey, "hex"),
+                    ).toString("hex"),
+            };
 
             console.log("eoa", eoa);
             store.setEoa(eoa);
 
             // update pairing status
             store.setPairingStatus("Paired");
-            setLoading(false);
-            // redirect to mint page
-            // router.replace("/mint");
+            // setLoading(false);
+
             router.replace("/mint");
         })();
     }
