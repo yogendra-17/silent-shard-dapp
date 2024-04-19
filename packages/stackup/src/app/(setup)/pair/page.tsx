@@ -5,7 +5,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/button";
 import { Avatar, AvatarFallback } from "@/components/avatar";
 import { Progress } from "@/components/progress";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/router";
 
 import * as store from "@/utils/store";
 import { initPairing, runKeygen, runPairing } from "@/mpc";

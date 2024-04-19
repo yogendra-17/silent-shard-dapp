@@ -1,20 +1,17 @@
 "use client";
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
-// import { toast,  } from 'react-toastify';
-import { Client, Presets } from 'userop';
-
-// import { ErrorToast } from '@/components/Toast/error';
+import { Client, Presets } from "userop";
 import { Button } from "@/components/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/popover";
 import { Separator } from "@/components/separator";
 import { TextInput } from "@/components/textInput";
- 
 import * as store from "@/utils/store";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/router";
 import { SilentWallet } from "@/silentWallet";
 import { HexString } from "web3";
 import { formatEther } from "ethers/lib/utils";
+import { getSilentShareStorage } from "@/mpc/storage";
 
 interface HomescreenProps {}
 
@@ -22,11 +19,11 @@ const Homescreen: React.FC<HomescreenProps> = ({}) => {
     const placeholderAccount = { address: "...", balance: 0 };
     const [walletAccount, setWalletAccount] =
         useState<store.accountType>(placeholderAccount);
-    const [walletBalance, setWalletBalance] = useState<string>('0');
+    const [walletBalance, setWalletBalance] = useState<string>("0");
     const [eoa, setEoa] = useState<store.accountType>(placeholderAccount);
-    const [network, setNetwork] = useState("..."); // set to polygon mumbai after switch
+    const [network, setNetwork] = useState("..."); 
     const [switchChain, setSwitchChain] = useState<"none" | "popup" | "button">(
-        "none"
+        "none",
     );
     const router = useRouter();
 
@@ -40,16 +37,15 @@ const Homescreen: React.FC<HomescreenProps> = ({}) => {
         setEoa(store.getEoa());
     }, []);
 
-    const SEPOLIA_CHAIN_ID = BigInt(1115511);
     const SEPOLIA = {
-        chainId: 0xaa36a7, // in hex 
+        chainId: 0xaa36a7, // in hex
         chainName: "Sepolia Test Network",
         nativeCurrency: {
             name: "sepolia",
-            symbol: "ETH", // corrected from "SepoliaETH" to "ETH"
+            symbol: "ETH", 
             decimals: 18,
         },
-        rpcUrls: ["https://rpc.sepolia.org"], // Make sure to replace "yourAlchemyKey" with your actual Alchemy key
+        rpcUrls: ["https://rpc.sepolia.org"],
         blockExplorerUrls: ["https://sepolia.etherscan.io/"],
     };
     useEffect(() => {
@@ -58,7 +54,7 @@ const Homescreen: React.FC<HomescreenProps> = ({}) => {
         (async () => {
             if (!(await isChainSepolia())) {
                 setSwitchChain("popup");
-                const didUserSwitch = await switchToPolygon();
+                const didUserSwitch = await switchToSepolia();
                 if (!didUserSwitch) {
                     setSwitchChain("button");
                     return;
@@ -79,7 +75,7 @@ const Homescreen: React.FC<HomescreenProps> = ({}) => {
 
     async function onSwitchChainClick() {
         if (switchChain === "popup") return;
-        const didUserSwitch = await switchToPolygon();
+        const didUserSwitch = await switchToSepolia();
         didUserSwitch ? setSwitchChain("none") : setSwitchChain("button");
     }
 
@@ -92,13 +88,12 @@ const Homescreen: React.FC<HomescreenProps> = ({}) => {
             console.log(currentChainId, "chianid");
             return true;
         }
-
-        // else not polygon
-        console.log("chain id not polygon ");
+        // else not sepolia
+        console.log("chain id not sepolia");
         return false;
     }
 
-    async function switchToPolygon(): Promise<boolean> {
+    async function switchToSepolia(): Promise<boolean> {
         try {
             // @ts-ignore
             await window.ethereum.request({
@@ -144,7 +139,7 @@ const Homescreen: React.FC<HomescreenProps> = ({}) => {
         setIsSendValid(
             switchChain == "none" &&
                 recipientAddressError == "" &&
-                amountError == ""
+                amountError == "",
         );
     }, [recipientAddress, amount, switchChain]);
 
@@ -190,54 +185,38 @@ const Homescreen: React.FC<HomescreenProps> = ({}) => {
             setShowTransactionSignedBanner(false);
             setShowTransactionInitiatedBanner(true);
 
-
             const requestData = {
                 to: recipientAddress,
                 amount: amount,
             };
-            const storageKey = 'SilentShare1';
-            const storageDataString = localStorage.getItem(storageKey);
-            if (!storageDataString) {
-              console.error("No storage data found");
-              return;
-            }
-            const storageData = JSON.parse(storageDataString);
-            const newPairingState = storageData.newPairingState;
-            const distributedKey = newPairingState.distributedKey;
-          
-            // Assuming these fields exist in your retrieved 
-             // Adjust field access as necessary
-            const publicKey = distributedKey.publicKey;
-            const address = ethers.utils.computeAddress(`0x04${publicKey}`);
-            const p1KeyShare = distributedKey.keyShareData;
-            const keygenResult = distributedKey; // You might want to structure this differently depending on needs
-            console.log("yogiKeygen",keygenResult)
-            console.log("yoogiAddress",address)
-            console.log("yoogiPublicKey",publicKey)
-            console.log("yoogiP1KeyShare",p1KeyShare)
-            console.log("yoogiKeygenResult",keygenResult)
-            // Initialize SilentWallet with retrieved configuration
-    
+            const keyshards = getSilentShareStorage();
+            const distributedKey = keyshards.newPairingState?.distributedKey;
             const simpleAccount = await Presets.Builder.SimpleAccount.init(
-              new SilentWallet(address, publicKey, p1KeyShare,{distributedKey}),
-            "https://api.stackup.sh/v1/node/32bbc56086c93278c34d5b3376a487e6b57147f052ec41688c1ad65bd984af7e") 
-            
-            const client = await Client.init("https://api.stackup.sh/v1/node/32bbc56086c93278c34d5b3376a487e6b57147f052ec41688c1ad65bd984af7e");
+                new SilentWallet(
+                    store.getEoa().address,
+                    distributedKey?.publicKey as string,
+                    distributedKey?.keyShareData,
+                    { distributedKey },
+                ),
+                "https://api.stackup.sh/v1/node/32bbc56086c93278c34d5b3376a487e6b57147f052ec41688c1ad65bd984af7e",
+            );
+            const client = await Client.init(
+                "https://api.stackup.sh/v1/node/32bbc56086c93278c34d5b3376a487e6b57147f052ec41688c1ad65bd984af7e",
+            );
 
             const target = ethers.utils.getAddress(requestData.to);
             const value = ethers.utils.parseEther(requestData.amount);
             const res = await client.sendUserOperation(
-              simpleAccount.execute(target, value, '0x'),
-              {
-                // Add necessary options as needed
-              
-              onBuild: (op) => console.log("Signed UserOperation:", op),
-              }
+                simpleAccount.execute(target, value, "0x"),
+                {
+                    // Add necessary options as needed
+                    onBuild: (op) => console.log("Signed UserOperation:", op),
+                },
             );
-            console.log("yogiRes",res.userOpHash);
+            console.log("userOp Hash", res.userOpHash);
 
             const ev = await res.wait();
-            console.log("yogiEv",ev?.transactionHash ?? null);
+            console.log("transactionHash", ev?.transactionHash ?? null);
 
             setShowTransactionInitiatedBanner(false);
 
@@ -342,21 +321,21 @@ const Homescreen: React.FC<HomescreenProps> = ({}) => {
                                                 className="flex items-center"
                                                 onClick={async () => {
                                                     navigator.clipboard.writeText(
-                                                        walletAccount.address
+                                                        walletAccount.address,
                                                     );
                                                 }}
                                             >
                                                 <span className="mr-1 text-[black] b1-bold ">
                                                     {walletAccount.address.slice(
                                                         0,
-                                                        5
+                                                        5,
                                                     )}
                                                     {"..."}
                                                     {walletAccount.address.slice(
                                                         walletAccount.address
                                                             .length - 5,
                                                         walletAccount.address
-                                                            .length
+                                                            .length,
                                                     )}
                                                 </span>
                                                 <svg
@@ -374,7 +353,6 @@ const Homescreen: React.FC<HomescreenProps> = ({}) => {
                                                     />
                                                 </svg>
                                             </div>
-                                            
                                         </PopoverTrigger>
                                         <PopoverContent
                                             align="start"
@@ -384,9 +362,11 @@ const Homescreen: React.FC<HomescreenProps> = ({}) => {
                                             Copied!
                                         </PopoverContent>
                                     </Popover>
-                                    { <div className="text-sm text-black-300 mt-2 font-bold">
-                                    Balance: {walletBalance} ETH
-                                </div>}
+                                    {
+                                        <div className="text-sm text-black-300 mt-2 font-bold">
+                                            Balance: {walletBalance} ETH
+                                        </div>
+                                    }
                                 </div>
 
                                 <div className="ml-auto"></div>
@@ -401,7 +381,7 @@ const Homescreen: React.FC<HomescreenProps> = ({}) => {
                                                 className="flex items-center"
                                                 onClick={async () => {
                                                     navigator.clipboard.writeText(
-                                                        eoa.address
+                                                        eoa.address,
                                                     );
                                                 }}
                                             >
@@ -410,7 +390,7 @@ const Homescreen: React.FC<HomescreenProps> = ({}) => {
                                                     {"..."}
                                                     {eoa.address.slice(
                                                         eoa.address.length - 5,
-                                                        eoa.address.length
+                                                        eoa.address.length,
                                                     )}
                                                 </span>
                                                 <svg
@@ -518,7 +498,7 @@ const Homescreen: React.FC<HomescreenProps> = ({}) => {
                                             href={
                                                 "https://mumbai.polygonscan.com/tx/" +
                                                 `${localStorage.getItem(
-                                                    "txHash"
+                                                    "txHash",
                                                 )}`
                                             }
                                         >

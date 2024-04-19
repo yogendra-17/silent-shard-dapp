@@ -6,10 +6,11 @@ import { Progress } from "@/components/progress";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/popover";
 import { Client, Presets } from "userop";
 import * as store from "@/utils/store";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/router";
 import { json } from "stream/consumers";
 import { SilentWallet } from "@/silentWallet";
 import { ethers } from "ethers";
+import { getSilentShareStorage } from "@/mpc/storage";
 function Page() {
     const placeholderAccount = { address: "...", balance: 0 };
     const [loading, setLoading] = useState<boolean>(false);
@@ -27,26 +28,17 @@ function Page() {
     const handleMint = () => {
         (async () => {
             setLoading(true);
-
-            const storageKey = "SilentShare1";
-            const storageDataString = localStorage.getItem(storageKey);
-            if (!storageDataString) {
-                console.error("No storage data found");
-                return;
-            }
-
-            // Parse the JSON string to an object
-            const storageData = JSON.parse(storageDataString);
-            const newPairingState = storageData.newPairingState;
-            const distributedKey = newPairingState.distributedKey;
-            const publicKey = distributedKey.publicKey;
-            const address = ethers.utils.computeAddress(`0x04${publicKey}`);
-            const p1KeyShare = distributedKey.keyShareData;
+            const keyshards = getSilentShareStorage();
+            const distributedKey = keyshards.newPairingState?.distributedKey;
+            const keyShareData = distributedKey?.keyShareData ?? null; // Add null check here
             const simpleAccount = await Presets.Builder.SimpleAccount.init(
-                new SilentWallet(address, publicKey, p1KeyShare, {
-                    distributedKey,
-                }),
-                "https://api.stackup.sh/v1/node/32bbc56086c93278c34d5b3376a487e6b57147f052ec41688c1ad65bd984af7e",
+                new SilentWallet(
+                    store.getEoa().address,
+                    distributedKey?.publicKey ?? "",
+                    keyShareData,
+                    { distributedKey }
+                ),
+                "https://api.stackup.sh/v1/node/32bbc56086c93278c34d5b3376a487e6b57147f052ec41688c1ad65bd984af7e"
             );
             const response = simpleAccount.getSender();
             store.setWalletAccount({ address: response });
